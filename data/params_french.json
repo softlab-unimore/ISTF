@@ -1,0 +1,59 @@
+{
+    "path_params": {
+        "ts_filename": "../ists/data/FrenchPiezo/dataset_2015_2021.csv",
+        "ctx_filename": "../ists/data/FrenchPiezo/dataset_stations.csv",
+        "ex_filename": "",
+        "type": "french",
+        "nan_percentage": 0.5
+    },
+
+    "prep_params": {
+        "ts_params": {
+            "label_col": "p",
+            "num_past": 48,
+            "num_fut": 7,
+            "freq": "D"
+        },
+        "feat_params": {
+            "time_feats": ["M", "WY"]
+        },
+        "spt_params": {
+            "num_spt": 2,
+            "max_dist_th": 0.25
+        },
+        "exg_params": {
+            "features": ["tp", "e"],
+            "features_stn": ["prof"]
+        }
+    },
+
+    "eval_params": {
+        "train_start": "2015-01-01",
+        "valid_start": "2019-01-01",
+        "test_start": "2020-01-01",
+        "label_th": 0,
+        "null_th": 12
+    },
+
+    "model_params": {
+        "transform_type": "standard",
+        "model_type": "sttransformer",
+        "nn_params": {
+            "kernel_size": 5,
+            "d_model": 32,
+            "num_heads": 4,
+            "dff": 64,
+            "gru": 64,
+            "fff": [128],
+            "activation": "relu",
+            "num_layers": 2,
+            "dropout_rate": 0.1,
+            "l2_reg": 0.01
+        },
+        "lr": 0.0001,
+        "loss": "mse",
+        "batch_size": 64,
+        "epochs": 100,
+        "patience": null
+    }
+}
