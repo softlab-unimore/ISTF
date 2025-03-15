@@ -136,32 +136,3 @@ class CrossEncoderLayer(tf.keras.layers.Layer):
 
         x = self.ffn(x)  # Shape `(batch_size, seq_len, d_model)`.
         return x
-
-
-class EncoderAttnMaskLayer(tf.keras.layers.Layer):
-
-    def __init__(self, *, d_model, num_heads, dff, activation='relu', dropout_rate=0.1, l2_reg=None):
-        super().__init__()
-
-        self.encoder = EncoderLayer(
-            d_model=d_model,
-            num_heads=num_heads,
-            dff=dff,
-            activation=activation,
-            dropout_rate=dropout_rate,
-            l2_reg=l2_reg
-        )
-
-    def call(self, x, attn_mask=None):  # x: (v, b, t, e) attn_mask: (v, b, t)
-        shape = tf.shape(x)
-        v, b, t, e = shape[0], shape[1], shape[2], shape[3]
-        x = tf.transpose(x, perm=[1, 0, 2, 3])  # x: (b, v, t, e)
-        x = tf.reshape(x, (b, v * t, e))  # x: (b, v*t, e)
-        if attn_mask is not None:
-            attn_mask = tf.transpose(attn_mask, perm=[1, 0, 2])  # attn_mask: (b, v, t)
-            attn_mask = tf.reshape(attn_mask, (b, v * t))  # attn_mask: (b, v*t)
-            attn_mask = tf.expand_dims(attn_mask, axis=-1) * tf.expand_dims(attn_mask, axis=1)  # attn_mask: (b, v*t, v*t)
-        x = self.encoder(x, attn_mask)
-        x = tf.reshape(x, (b, v, t, e))  # x: (b, v, t, e)
-        x = tf.transpose(x, perm=[1, 0, 2, 3])  # x: (v, b, t, e)
-        return x

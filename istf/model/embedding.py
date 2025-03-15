@@ -45,7 +45,7 @@ class FixedEmbedding(tf.keras.layers.Layer):
 
 
 class TemporalEmbedding(tf.keras.layers.Layer):
-    def __init__(self, d_model, kernel_size, feature_mask, is_null_embedding=False, time_features=None, l2_reg=None):
+    def __init__(self, d_model, kernel_size, feature_mask, time_features=None, l2_reg=None):
         super().__init__()
         # Embedding dimension & layer
         self.d_model = d_model
@@ -62,8 +62,6 @@ class TemporalEmbedding(tf.keras.layers.Layer):
 
         # Feature mask to split values for time encodings and null encoding
         self.feature_mask = np.array(feature_mask)
-        if is_null_embedding and 1 not in feature_mask:
-            raise ValueError('Null embedding is set to True but no null feature is provided in the feature mask')
         if time_features and len(self.feature_mask[self.feature_mask == 2]) != len(time_features):
             raise ValueError('time_features must have the same dimension of the number of time features')
 
@@ -71,11 +69,6 @@ class TemporalEmbedding(tf.keras.layers.Layer):
         self.time_embedders = []
         if time_features:
             self.time_embedders = [FixedEmbedding(d_model=d_model, c_in=TIME_N_VALUES[f]) for f in time_features]
-
-        # Null positional embedding layer
-        self.null_embedder = None
-        if is_null_embedding:
-            self.null_embedder = FixedEmbedding(d_model=d_model, c_in=2)
 
         self.feat_ids = [i for i, x in enumerate(feature_mask) if x == 0]
         self.null_id = [i for i, x in enumerate(feature_mask) if x == 1]
@@ -99,10 +92,5 @@ class TemporalEmbedding(tf.keras.layers.Layer):
             for i, time_embedder in enumerate(self.time_embedders):
                 time_emb = time_embedder(arr_times[:, :, i])
                 emb = emb + time_emb
-
-        # Add the null encoding
-        if self.null_embedder:
-            null_emb = self.null_embedder(x[:, :, self.null_id[0]])
-            emb = emb + null_emb
 
         return emb

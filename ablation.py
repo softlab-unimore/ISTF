@@ -261,7 +261,7 @@ def apply_ablation_code(abl_code: str, D):
         D['params']['model_params']['nn_params']['num_heads'] = 1
         D = _scale_time_features()
     if abl_3:
-        D['params']['model_params']['encoder_layer_cls'] = 'EncoderAttnMaskLayer'
+        D['params']['model_params']['encoder_layer_cls'] = 'MVEncoderLayer'
     if abl_5:
         n = False
     if abl_6:
@@ -472,8 +472,8 @@ def ablation(
         # name += "_EmbReg"
         # name += "_ImpMean"
         # name += "_B"
-        train_test_dict['params']['model_params']['encoder_cls'] = "ParallelEncoder"
-        name += '_P'
+        # train_test_dict['params']['model_params']['encoder_cls'] = "ParallelEncoder"
+        # name += '_P'
         if name.endswith('#'):
             name = name[:-1]
         # train_test_dict = ablation_impute_mean(train_test_dict)

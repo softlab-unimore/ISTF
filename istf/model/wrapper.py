@@ -146,7 +146,7 @@ class ModelWrapper(object):
                 mode='min',
                 verbose=1,
                 restore_best_weights=False,
-                start_from_epoch=20,
+                start_from_epoch=0,
                 min_delta=2e-4,
             )
             callbacks.append(early_stopping)
