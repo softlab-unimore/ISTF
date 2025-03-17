@@ -325,7 +325,7 @@ def get_suffix(train_test_dict):
     suffix = []
 
     num_layers = train_test_dict['params']['model_params']['nn_params']['num_layers']
-    suffix.append(f'encs={num_layers}')
+    suffix.append(f'encs{num_layers}')
     d_model = train_test_dict['params']['model_params']['nn_params']['d_model']
     suffix.append(f'd{d_model}')
     num_heads = train_test_dict['params']['model_params']['nn_params']['num_heads']
@@ -404,18 +404,8 @@ def ablation(
         name, train_test_dict = apply_ablation_code(name, train_test_dict)
         suffix = get_suffix(train_test_dict)
         if suffix: name = f"{name}#{suffix}"
-        if '#' not in name:
-            name += '#'
-        # name += "_sk"
-        # name += "_EmbReg"
-        # name += "_ImpMean"
-        # name += "_B"
-        if name.endswith('#'):
-            name = name[:-1]
-        # train_test_dict = ablation_impute_mean(train_test_dict)
 
         print(f"\n{name}: {train_test_dict['params']['model_params']['model_type']}")
-        # seed = train_test_dict['params']['model_params']['seed']
         seed = model_params['seed']
         if seed is not None:
             random.seed(seed)
@@ -424,13 +414,11 @@ def ablation(
         if seed != 42:
             name += '_seed' + str(train_test_dict['params']['model_params']['seed'])
 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        checkpoint_dir = checkpoint_basedir + "/" + timestamp
+        checkpoint_dir = checkpoint_basedir + "/" + suffix
         os.makedirs(checkpoint_dir, exist_ok=True)
 
         model_res = model_step(train_test_dict, train_test_dict['params']['model_params'], checkpoint_dir)
 
-        # non-grid results
         if os.path.exists(results_file):
             results = pd.read_csv(results_file, index_col=0).T.to_dict()
         else:
@@ -438,29 +426,12 @@ def ablation(
         results[name] = model_res
         pd.DataFrame(results).T.to_csv(results_file, index=True)
 
-        """# grid results
-        import json
-        model_res["name"] = name
-        model_res["params"] = train_test_dict["params"]["model_params"]
-        results_path = results_file.replace('.csv', '/')
-        os.makedirs(results_path, exist_ok=True)
-        results_path += timestamp + '.json'
-        with open(results_path, 'w') as f:
-            # model_res["params"]["nn_params"]["null_max_size"] = int(model_res["params"]["nn_params"]["null_max_size"])
-            model_res["test_mae"] = float(model_res["test_mae"])
-            model_res["test_mse"] = float(model_res["test_mse"])
-            json.dump(model_res, f, indent=4)"""
-
 
 def main():
     path_params, prep_params, eval_params, model_params = parse_params()
     if model_params['cpu']:
         tf.config.set_visible_devices([], 'GPU')
     seed = model_params['seed']
-    # if seed is not None:
-    #     random.seed(seed)
-    #     np.random.seed(seed)
-    #     tf.random.set_seed(seed)
 
     results_dir = './output/results'
     pickle_dir = './output/pickle' + ('_seed' + str(seed) if seed != 42 else '')
@@ -488,21 +459,6 @@ def main():
     pickle_file = os.path.join(pickle_dir, f"{conf_name}.pickle")
     checkpoint_dir = os.path.join(model_dir, conf_name)
 
-    """if os.path.exists(pickle_file) and not path_params['force_data_step']:
-        print('Loading from', pickle_file, '...', end='', flush=True)
-        with open(pickle_file, "rb") as f:
-            train_test_dict = pickle.load(f)
-        print(' done!')
-    else:
-        train_test_dict = data_step(
-            path_params, prep_params, eval_params, scaler_type=model_params['transform_type']
-        )
-
-        with open(pickle_file, "wb") as f:
-            print('Saving to', pickle_file, '...', end='', flush=True)
-            pickle.dump(train_test_dict, f)
-            print(' done!')"""
-    # Invert the previous if-else
     if path_params['force_data_step'] or not os.path.exists(pickle_file):
         train_test_dict = data_step(
             path_params, prep_params, eval_params, scaler_type=model_params['scaler_type']
@@ -513,15 +469,7 @@ def main():
             print(' done!')
         del train_test_dict
 
-    # train_test_dict['params'] = {
-    #     'path_params': path_params,
-    #     'prep_params': prep_params,
-    #     'eval_params': eval_params,
-    #     'model_params': model_params,
-    # }
-
     ablation(
-        # train_test_dict=train_test_dict,
         pickle_file=pickle_file,
         results_file=results_file,
         checkpoint_basedir=checkpoint_dir,
