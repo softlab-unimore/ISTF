@@ -2,19 +2,17 @@
     "path_params": {
         "ts_filename": "data/USHCN/pivot_1990_1993_spatial.csv",
         "ctx_filename": "",
-        "ex_filename": "",
-        "type": "ushcn",
-        "nan_percentage": 0.5
+        "ex_filename": ""
     },
 
     "prep_params": {
         "ts_params": {
-            "label_col": "TAVG",
+            "dataset": "ushcn",
+            "nan_percentage": 0.5,
             "num_past": 48,
             "num_fut": 7,
-            "freq": "D"
-        },
-        "feat_params": {
+            "label_col": "TAVG",
+            "freq": "D",
             "time_feats": ["M", "WY"]
         },
         "spt_params": {
@@ -30,13 +28,11 @@
         "train_start": "1990-01-01",
         "valid_start": "1992-01-01",
         "test_start": "1993-01-01",
-        "label_th": 0,
         "null_th": 12
     },
 
     "model_params": {
-        "transform_type": "standard",
-        "model_type": "sttransformer",
+        "scaler_type": "standard",
         "nn_params": {
             "kernel_size": 5,
             "d_model": 32,

@@ -103,7 +103,7 @@ class ISTFModel(tf.keras.Model):
         return tf.gather(x, self.value_ids, axis=-1), tf.expand_dims(x[:, :, :, self.attn_mask_id], -1)
 
     def call(self, inputs):
-        X = inputs[0]  # (b, v, t, f)
+        X = inputs  # (b, v, t, f)
 
         X, attn_mask = self.split_data_attn_mask(X)
         X = tf.unstack(X, axis=1)

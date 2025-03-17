@@ -11,8 +11,7 @@ from istf.model.wrapper import ModelWrapper
 
 
 def model_step(train_test_dict: dict, model_params: dict, checkpoint_dir: str) -> dict:
-    model_type = model_params['model_type']
-    transform_type = model_params['transform_type']
+    scaler_type = model_params['scaler_type']
     nn_params = model_params['nn_params']
     loss = model_params['loss']
     lr = model_params['lr']
@@ -22,39 +21,29 @@ def model_step(train_test_dict: dict, model_params: dict, checkpoint_dir: str) -
 
     # Insert data params in nn_params for building the correct model
     nn_params['feature_mask'] = train_test_dict['x_feat_mask']
-    nn_params['spatial_size'] = len(train_test_dict['spt_train']) + 1 # target
-    nn_params['exg_size'] = len(train_test_dict['exg_train']) + 1 # target
-    nn_params["time_features"] = train_test_dict['params']["prep_params"]["feat_params"]['time_feats']
-    if 'encoder_cls' in model_params:
-        nn_params['encoder_cls'] = model_params['encoder_cls']
+    nn_params["time_features"] = train_test_dict['params']["prep_params"]["ts_params"]['time_feats']
     if 'encoder_layer_cls' in model_params:
         nn_params['encoder_layer_cls'] = model_params['encoder_layer_cls']
 
     model = ModelWrapper(
         checkpoint_dir=checkpoint_dir,
-        model_type=model_type,
         model_params=nn_params,
         loss=loss,
         lr=lr,
         dev=train_test_dict['params']['path_params']['dev']
     )
 
-    valid_args = dict(
-        val_x=train_test_dict['x_valid'],
-        val_spt=train_test_dict['spt_valid'],
-        val_exg=train_test_dict['exg_valid'],
-        val_y=train_test_dict['y_valid']
-    )
+    X = np.stack([train_test_dict['x_train']] + train_test_dict['exg_train'], axis=1)
+    val_X = np.stack([train_test_dict['x_valid']] + train_test_dict['exg_valid'], axis=1)
 
     model.fit(
-        x=train_test_dict['x_train'],
-        spt=train_test_dict['spt_train'],
-        exg=train_test_dict['exg_train'],
+        X=X,
         y=train_test_dict['y_train'],
         epochs=epochs,
         batch_size=batch_size,
         verbose=1,
-        **valid_args,
+        val_X=val_X,
+        val_y=train_test_dict['y_valid'],
         early_stop_patience=patience,
     )
 
@@ -66,23 +55,19 @@ def model_step(train_test_dict: dict, model_params: dict, checkpoint_dir: str) -
                 scaler = {
                     "standard": StandardScaler,
                     # "minmax": MinMaxScaler,
-                }[transform_type]()
+                }[scaler_type]()
                 for k, v in scalers[id][f].items():
                     setattr(scaler, k, v)
                 scalers[id][f] = scaler
 
-    preds = model.predict(
-        x=train_test_dict['x_test'],
-        spt=train_test_dict['spt_test'],
-        exg=train_test_dict['exg_test'],
-    )
+    X_test = np.stack([train_test_dict['x_test']] + train_test_dict['exg_test'], axis=1)
+    y_true = train_test_dict['y_test']
+    y_pred = model.predict(X=X_test)
 
     id_array = train_test_dict['id_test']
-    y_true = np.array([np.reshape([scalers[id][f].inverse_transform([[y__]]) for y__, f in zip(y_, scalers[id])], -1)
-                       for y_, id in zip(train_test_dict['y_test'], id_array)])
-    y_preds = np.array([np.reshape([scalers[id][f].inverse_transform([[y__]]) for y__, f in zip(y_, scalers[id])], -1)
-                        for y_, id in zip(preds, id_array)])
-    res_test = compute_metrics(y_true=y_true, y_preds=y_preds)
+    y_true = np.array([list(scalers[id].values())[0].inverse_transform([y_])[0] for y_, id in zip(y_true, id_array)])
+    y_pred = np.array([list(scalers[id].values())[0].inverse_transform([y_])[0] for y_, id in zip(y_pred, id_array)])
+    res_test = compute_metrics(y_true=y_true, y_preds=y_pred)
     res_test = {f'test_{k}': val for k, val in res_test.items()}
     res.update(res_test)
     print(model.model.summary())
@@ -90,7 +75,7 @@ def model_step(train_test_dict: dict, model_params: dict, checkpoint_dir: str) -
 
     res['loss'] = model.history.history['loss']
     res['val_loss'] = model.history.history['val_loss']
-    if 'test_loss' in model.history.history: res['test_loss'] = model.history.history['test_loss']
+    res["val_mse"] = model.history.history["val_mse"]
     res['epoch_times'] = model.epoch_times
     return res
 
@@ -114,14 +99,15 @@ def main():
     model_dir = './output/model' + ('_seed' + str(_seed) if _seed != 42 else '')
 
     subset = os.path.basename(path_params['ex_filename']).replace('subset_agg_', '').replace('.csv', '')
-    nan_percentage = path_params['nan_percentage']
+    nan_percentage = prep_params['ts_params']['nan_percentage']
     num_fut = prep_params['ts_params']['num_fut']
 
     os.makedirs(res_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
 
-    out_name = f"{path_params['type']}_{subset}_nan{int(nan_percentage * 10)}_nf{num_fut}"
+    dataset = prep_params['ts_params']['dataset']
+    out_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_nf{num_fut}"
     print('out_name:', out_name)
     results_path = os.path.join(res_dir, f"{out_name}.csv")
     pickle_path = os.path.join(data_dir, f"{out_name}.pickle")
@@ -136,7 +122,7 @@ def main():
     if True:
         # from data_step import data_step
         train_test_dict = data_step(
-            path_params, prep_params, eval_params, scaler_type=model_params['transform_type']
+            path_params, prep_params, eval_params, scaler_type=model_params['scaler_type']
         )
         with open(pickle_path, "wb") as f:
             print('Saving to', pickle_path, '...', end='')

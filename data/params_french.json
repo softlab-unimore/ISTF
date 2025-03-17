@@ -2,19 +2,17 @@
     "path_params": {
         "ts_filename": "../ists/data/FrenchPiezo/dataset_2015_2021.csv",
         "ctx_filename": "../ists/data/FrenchPiezo/dataset_stations.csv",
-        "ex_filename": "",
-        "type": "french",
-        "nan_percentage": 0.5
+        "ex_filename": ""
     },
 
     "prep_params": {
         "ts_params": {
-            "label_col": "p",
+            "dataset": "french",
+            "nan_percentage": 0.5,
             "num_past": 48,
             "num_fut": 7,
-            "freq": "D"
-        },
-        "feat_params": {
+            "label_col": "p",
+            "freq": "D",
             "time_feats": ["M", "WY"]
         },
         "spt_params": {
@@ -31,13 +29,11 @@
         "train_start": "2015-01-01",
         "valid_start": "2019-01-01",
         "test_start": "2020-01-01",
-        "label_th": 0,
         "null_th": 12
     },
 
     "model_params": {
-        "transform_type": "standard",
-        "model_type": "sttransformer",
+        "scaler_type": "standard",
         "nn_params": {
             "kernel_size": 5,
             "d_model": 32,
@@ -54,6 +50,6 @@
         "loss": "mse",
         "batch_size": 64,
         "epochs": 100,
-        "patience": null
+        "patience": 20
     }
 }

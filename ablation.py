@@ -29,7 +29,7 @@ def ablation_embedder_no_feat(train_test_dict, code) -> dict:
         train_test_dict['params']['model_params']['nn_params']['is_null_embedding'] = False
 
     if code == 2:
-        train_test_dict['params']["prep_params"]["feat_params"]['time_feats'] = None
+        train_test_dict['params']["prep_params"]["ts_params"]['time_feats'] = None
 
     return train_test_dict
 
@@ -242,7 +242,7 @@ def apply_ablation_code(abl_code: str, D):
 
     def _scale_time_features():
         feature_mask = np.array(D['x_feat_mask'])
-        time_features = D['params']["prep_params"]["feat_params"]['time_feats']
+        time_features = D['params']["prep_params"]["ts_params"]['time_feats']
         for split in ['train', 'test', 'valid']:
             D[f'x_{split}'] = scale_time_features(D[f'x_{split}'], feature_mask, time_features)
             D[f'spt_{split}'] = [scale_time_features(x, feature_mask, time_features) for x in D[f'spt_{split}']]
@@ -318,96 +318,34 @@ from pipeline import model_step
 
 
 def get_suffix(train_test_dict):
-    defaults = {
-        'num_layers': 1,
-        'l2_reg': 0.01,
-        'dropout_rate': 0.2,
-        'time_feats': {
-            'french': ('D',),
-            'ushcn': ('WY',),
-            'adbpo': ('M', 'WY'),
-        },
-        'epochs': 100,
-        'patience': 20,
-        'lr': {
-            'french': 0.0004, 'ushcn': 0.00004, 'adbpo': 0.0004,
-        },
-        'tf': '2.17.0',
-        'd_model': {
-            'french': 64, 'ushcn': 64, 'adbpo': 32
-        },
-        'num_heads': { 'french': 4, 'ushcn': 4, 'adbpo': 2
-        },
-        'dff': {
-            'french': 128, 'ushcn': 128, 'adbpo': 64,
-        },
-        'gru': {
-            'french': 256, 'ushcn': 256, 'adbpo': 128
-        },
-        'fff': {
-            'french': [256], 'ushcn': [256], 'adbpo': [128]
-        },
-    }
-
-    dataset = train_test_dict['params']['path_params']['type']
+    def to_scientific_notation(number):
+        mantissa, exponent = f"{number:.0e}".split("e")
+        return float(mantissa), int(exponent)
 
     suffix = []
 
     num_layers = train_test_dict['params']['model_params']['nn_params']['num_layers']
-    if num_layers != defaults['num_layers']:
-        suffix.append(f'encs={num_layers}')
-
+    suffix.append(f'encs={num_layers}')
     d_model = train_test_dict['params']['model_params']['nn_params']['d_model']
-    if d_model != defaults['d_model'][dataset]:
-        suffix.append(f'd{d_model}')
+    suffix.append(f'd{d_model}')
     num_heads = train_test_dict['params']['model_params']['nn_params']['num_heads']
-    if num_heads != defaults['num_heads'][dataset]:
-        suffix.append(f'h{num_heads}')
+    suffix.append(f'h{num_heads}')
     dff = train_test_dict['params']['model_params']['nn_params']['dff']
-    if dff != defaults['dff'][dataset]:
-        suffix.append(f'dff{dff}')
+    suffix.append(f'dff{dff}')
     gru = train_test_dict['params']['model_params']['nn_params']['gru']
-    if gru != defaults['gru'][dataset]:
-        suffix.append(f'gru{gru}')
+    suffix.append(f'gru{gru}')
     fff = train_test_dict['params']['model_params']['nn_params']['fff']
-    if fff != defaults['fff'][dataset]:
-        suffix.append(f'fff{"+".join([str(x) for x in fff])}')
-
-    l2_reg = train_test_dict['params']['model_params']['nn_params']['l2_reg']
-    if l2_reg != defaults['l2_reg']:
-        l2_reg = str(l2_reg).replace('0.', '')
-        suffix.append(f'reg{l2_reg}')
+    suffix.append(f'fff{"+".join([str(x) for x in fff])}')
 
     dropout_rate = train_test_dict['params']['model_params']['nn_params']['dropout_rate']
-    if dropout_rate != defaults['dropout_rate']:
-        dropout_rate = str(dropout_rate).replace('0.', '')
-        suffix.append(f'dro{dropout_rate}')
+    suffix.append(f'dro{int(dropout_rate*10)}')
 
-    epochs = train_test_dict['params']['model_params']['epochs']
-    if epochs != defaults['epochs']:
-        suffix.append(f'e{epochs}')
-
-    patience = train_test_dict['params']['model_params']['patience']
-    if patience != defaults['patience']:
-        suffix.append(f'pat{patience}')
-
+    l2_reg = train_test_dict['params']['model_params']['nn_params']['l2_reg']
+    m, e = to_scientific_notation(l2_reg)
+    suffix.append(f'reg{int(m)}{"+" if e>0 else ""}{e}')
     lr = train_test_dict['params']['model_params']['lr']
-    if lr != defaults['lr'][dataset]:
-        if lr == 0:
-            suffix.append('lr0')
-        else:
-            suffix.append(f'lr{lr:.0e}')
-
-    time_feats = train_test_dict['params']['prep_params']['feat_params']['time_feats']
-    time_feats = tuple(sorted(time_feats))
-    if time_feats != tuple(sorted(defaults['time_feats'][dataset])):
-        suffix.append('_'.join(time_feats))
-
-    if tf.__version__ != defaults['tf']:
-        suffix.append(f'tf{tf.__version__.replace(".", "")}')
-
-    if train_test_dict["params"]["model_params"]["nn_params"]["is_null_embedding"]:
-        suffix.append("Nemb")
+    m, e = to_scientific_notation(lr)
+    suffix.append(f'lr{int(m)}{"+" if e>0 else ""}{e}')
 
     return '_'.join(suffix)
 
@@ -472,8 +410,6 @@ def ablation(
         # name += "_EmbReg"
         # name += "_ImpMean"
         # name += "_B"
-        # train_test_dict['params']['model_params']['encoder_cls'] = "ParallelEncoder"
-        # name += '_P'
         if name.endswith('#'):
             name = name[:-1]
         # train_test_dict = ablation_impute_mean(train_test_dict)
@@ -535,17 +471,18 @@ def main():
     os.makedirs(model_dir, exist_ok=True)
 
     subset = path_params['ex_filename']
-    if path_params['type'] == 'adbpo' and 'exg_w_tp_t2m' in subset:
+    dataset = prep_params["ts_params"]['dataset']
+    if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
         subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
     elif 'all' in subset:
         path_params['ex_filename'] = None
     else:
         subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
-    nan_percentage = path_params['nan_percentage']
+    nan_percentage = prep_params["ts_params"]['nan_percentage']
     num_past = prep_params['ts_params']['num_past']
     num_fut = prep_params['ts_params']['num_fut']
 
-    conf_name = f"{path_params['type']}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
+    conf_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
     print('configuration:', conf_name)
     results_file = os.path.join(results_dir, f"{conf_name}.csv")
     pickle_file = os.path.join(pickle_dir, f"{conf_name}.pickle")
@@ -568,7 +505,7 @@ def main():
     # Invert the previous if-else
     if path_params['force_data_step'] or not os.path.exists(pickle_file):
         train_test_dict = data_step(
-            path_params, prep_params, eval_params, scaler_type=model_params['transform_type']
+            path_params, prep_params, eval_params, scaler_type=model_params['scaler_type']
         )
         with open(pickle_file, "wb") as f:
             print('Saving to', pickle_file, '...', end='', flush=True)

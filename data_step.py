@@ -39,7 +39,6 @@ def parse_params():
     parser.add_argument("--num-layers", type=int, default=None)
 
     parser.add_argument("--lr", type=float, default=None, help="Learning rate")
-    # parser.add_argument("--warmup-steps", type=int, default=None, help="Warmup steps for custom scheduler")
     parser.add_argument("--l2-reg", type=float, default=None, help="L2 regularization")
     parser.add_argument("--dropout", type=float, default=None, help="Dropout rate")
 
@@ -205,7 +204,7 @@ def apply_scaler(ts_dict, features, train_end_excl, scaler_init):
 
 def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_type=None):
     ts_params = prep_params["ts_params"]
-    feat_params = prep_params["feat_params"]
+    # feat_params = prep_params["feat_params"]
     spt_params = prep_params["spt_params"]
     exg_params = prep_params["exg_params"]
 
@@ -218,10 +217,10 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         ts_filename=path_params['ts_filename'],
         context_filename=path_params['ctx_filename'],
         ex_filename=path_params['ex_filename'],
-        data_type=path_params['type'],
+        data_type=ts_params['dataset'],
         ts_features=[label_col],
         exg_features=exg_cols,
-        nan_percentage=path_params['nan_percentage'],
+        nan_percentage=ts_params['nan_percentage'],
         exg_cols_stn=exg_params['features_stn'] if 'features_stn' in exg_params else None,
         exg_cols_stn_scaler=scaler_type,
         num_past=ts_params['num_past'],
@@ -264,7 +263,7 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
     exg_cols = exg_cols + (exg_params['features_stn'] if 'features_stn' in exg_params else [])
     cols = [label_col] + exg_cols
 
-    time_feats = feat_params["time_feats"]
+    time_feats = ts_params["time_feats"]
     for stn, ts in ts_dict.items():
         for col in cols:
             ts[f"{col}_is_null"] = ts[col].isnull().astype(int)
@@ -286,7 +285,7 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         "french": link_spatial_data_water_body,
         "ushcn": link_spatial_data,
         "adbpo": link_spatial_data_water_body,
-    }[path_params['type']]
+    }[ts_params['dataset']]
     ts_dict = link_spatial_data_fn(
         ts_dict=ts_dict,
         label_col=label_col,
@@ -312,7 +311,7 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         label_col=label_col,
         exg_cols=exg_cols,
         num_spt=spt_params["num_spt"],
-        time_feats=feat_params["time_feats"],
+        time_feats=ts_params["time_feats"],
         num_past=ts_params["num_past"],
         num_fut=ts_params["num_fut"],
         max_null_th=eval_params["null_th"]
@@ -363,23 +362,24 @@ if __name__ == '__main__':
     os.makedirs(data_dir, exist_ok=True)
 
     subset = path_params['ex_filename']
-    if path_params['type'] == 'adbpo' and 'exg_w_tp_t2m' in subset:
+    dataset = prep_params['ts_params']['dataset']
+    if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
         subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
     elif 'all' in subset:
         path_params['ex_filename'] = None
     else:
         subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
-    nan_percentage = path_params['nan_percentage']
+    nan_percentage = prep_params['ts_params']['nan_percentage']
     num_past = prep_params['ts_params']['num_past']
     num_fut = prep_params['ts_params']['num_fut']
     num_spt = prep_params['spt_params']['num_spt']
 
-    out_name = f"{path_params['type']}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
+    out_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
     print('out_name:', out_name)
     pickle_path = os.path.join(data_dir, f"{out_name}.pickle")
 
     train_test_dict = data_step(
-        path_params, prep_params, eval_params, scaler_type=model_params['transform_type']
+        path_params, prep_params, eval_params, scaler_type=model_params['scaler_type']
     )
 
     with open(pickle_path, "wb") as f:
