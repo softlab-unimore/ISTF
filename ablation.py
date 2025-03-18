@@ -261,7 +261,9 @@ def apply_ablation_code(abl_code: str, D):
         D['params']['model_params']['nn_params']['num_heads'] = 1
         D = _scale_time_features()
     if abl_3:
-        D['params']['model_params']['encoder_layer_cls'] = 'MVEncoderLayer'
+        D['params']['model_params']['nn_params']['encoder_layer_cls'] = 'MVEncoderLayer'
+    if abl_4:
+        D["params"]["model_params"]['nn_params']["predictor_cls"] = "PredictorFlatten"
     if abl_5:
         n = False
     if abl_6:
@@ -375,12 +377,12 @@ def ablation(
         model_params: dict,
 ):
     ablations_mapping = [
-        'E_nt',
+        # 'E_nt',
         # 'E_t',
         # 'E_nt_1',
         # 'E_nt_2',
         # 'E_nt_3',
-        # 'E_nt_4',
+        'E_nt_4',
         # 'E_nt_6',
         # 'E_nt_7',
         # 'E_nt_8',
@@ -441,17 +443,22 @@ def main():
     os.makedirs(pickle_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
 
-    subset = path_params['ex_filename']
     dataset = prep_params["ts_params"]['dataset']
-    if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
-        subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
-    elif 'all' in subset:
-        path_params['ex_filename'] = None
-    else:
-        subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
+    # subset = path_params['ex_filename']
+    # if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
+    #     subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
+    # elif 'all' in subset:
+    #     path_params['ex_filename'] = None
+    # else:
+    #     subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
     nan_percentage = prep_params["ts_params"]['nan_percentage']
     num_past = prep_params['ts_params']['num_past']
     num_fut = prep_params['ts_params']['num_fut']
+
+    num_spt = prep_params['spt_params']['num_spt']
+    max_dist_th = prep_params['spt_params']['max_dist_th']
+    subset = f"spt{num_spt}_th{max_dist_th}"
+    if path_params["dev"]: subset += "_dev"
 
     conf_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
     print('configuration:', conf_name)

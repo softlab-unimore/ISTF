@@ -21,7 +21,8 @@ class ISTFModel(tf.keras.Model):
             dropout_rate=0.1,
             time_features=None,
             do_emb=True,
-            encoder_layer_cls=None,
+            encoder_layer_cls="MVEncoderLayerLocalGlobalAttn",
+            predictor_cls="PredictorGRU",
             l2_reg=None,
             **kwargs
     ):
@@ -47,6 +48,7 @@ class ISTFModel(tf.keras.Model):
         self.time_features = time_features
         self.do_emb = do_emb
         self.encoder_layer_cls = encoder_layer_cls
+        self.predictor_cls = predictor_cls
         self.l2_reg = l2_reg
 
         if self.do_emb:
@@ -73,8 +75,10 @@ class ISTFModel(tf.keras.Model):
             l2_reg=self.l2_reg
         ) for _ in range(self.num_layers)]
 
-        # self.final_layers = PredictorFlatten(self.fff, self.dropout_rate, self.l2_reg)
-        self.final_layers = PredictorGRU(self.gru, self.fff, self.dropout_rate, self.l2_reg, gru_bidirectional=False)
+        if self.predictor_cls == 'PredictorFlatten':
+            self.final_layers = PredictorFlatten(self.fff, self.dropout_rate, self.l2_reg)
+        else:  # if self.predictor_cls == 'gru':
+            self.final_layers = PredictorGRU(self.gru, self.fff, self.dropout_rate, self.l2_reg, gru_bidirectional=False)
 
 
     def get_config(self):
@@ -93,6 +97,7 @@ class ISTFModel(tf.keras.Model):
             'time_features': self.time_features,
             'do_emb': self.do_emb,
             'encoder_layer_cls': self.encoder_layer_cls,
+            'predictor_cls': self.predictor_cls,
             'l2_reg': self.l2_reg
         })
         return config
@@ -102,10 +107,8 @@ class ISTFModel(tf.keras.Model):
             return x, None
         return tf.gather(x, self.value_ids, axis=-1), tf.expand_dims(x[:, :, :, self.attn_mask_id], -1)
 
-    def call(self, inputs):
-        X = inputs  # (b, v, t, f)
-
-        X, attn_mask = self.split_data_attn_mask(X)
+    def call(self, inputs):  # (b, v, t, f)
+        X, attn_mask = self.split_data_attn_mask(inputs)
         X = tf.unstack(X, axis=1)
         X = [self.embedder(x) for x in X]
         X = [self.dropout(x) for x in X]

@@ -22,8 +22,8 @@ def model_step(train_test_dict: dict, model_params: dict, checkpoint_dir: str) -
     # Insert data params in nn_params for building the correct model
     nn_params['feature_mask'] = train_test_dict['x_feat_mask']
     nn_params["time_features"] = train_test_dict['params']["prep_params"]["ts_params"]['time_feats']
-    if 'encoder_layer_cls' in model_params:
-        nn_params['encoder_layer_cls'] = model_params['encoder_layer_cls']
+    # if 'encoder_layer_cls' in model_params:
+    #     nn_params['encoder_layer_cls'] = model_params['encoder_layer_cls']
 
     model = ModelWrapper(
         checkpoint_dir=checkpoint_dir,

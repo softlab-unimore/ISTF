@@ -56,7 +56,7 @@ class ModelWrapper(object):
             batch_size: int = 32,
             verbose: int = 0,
             val_X: np.ndarray = None, val_y: np.ndarray = None,
-            early_stop_patience: int = None,
+            early_stop_patience: int = -1,
             checkpoint_threshold: float = None
     ):
 
@@ -72,7 +72,7 @@ class ModelWrapper(object):
         timing_callback = TimingCallback()
         callbacks = [model_checkpoint, timing_callback]
 
-        if early_stop_patience:
+        if early_stop_patience >= 0:
             early_stopping = tf.keras.callbacks.EarlyStopping(
                 monitor='val_loss',
                 patience=early_stop_patience,

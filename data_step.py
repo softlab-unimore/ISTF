@@ -19,96 +19,96 @@ def parse_params():
     """ Parse input parameters. """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type=str, required=True,
-                        help='the path where the configuration is stored.')
+    # parser.add_argument('-f', '--file', type=str, required=True,
+    #                     help='the path where the configuration is stored.')
+
+    parser.add_argument("--dataset", type=str, required=True, help="Dataset")
+    parser.add_argument('--nan-percentage', type=float, required=True, help='Percentage of NaN values to insert')
+    parser.add_argument('--num-past', type=int, required=True, help='Number of past values to consider')
+    parser.add_argument('--num-fut', type=int, required=True, help='Number of future values to predict')
+
+    parser.add_argument("--kernel-size", type=int, default=5)
+    parser.add_argument("--d-model", type=int, default=32)
+    parser.add_argument("--num-heads", type=int, default=4)
+    parser.add_argument("--dff", type=int, default=64)
+    parser.add_argument("--num-layers", type=int, default=2)
+    parser.add_argument("--gru", type=int, default=64)
+    parser.add_argument("--fff", type=int, nargs="+", default=[128])
+    parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
+    parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
+    parser.add_argument("--activation", type=str, default="relu", help="Activation function")
+
+    parser.add_argument("--scaler-type", type=str, default="standard", help="Scaler type")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--loss", type=str, default="mse", help="Loss function")
+    parser.add_argument("--batch-size", type=int, default=64, help="Batch size")
+    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+    parser.add_argument("--patience", type=int, default=20, help="Early stopping patience; -1 no early stopping")
+
+    parser.add_argument('--force-data-step', action='store_true', help='Force data step')
     parser.add_argument('--dev', action='store_true', help='Run on development data')
     parser.add_argument('--cpu', action='store_true', help='Run on CPU')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
 
-    parser.add_argument('--num-past', type=int, default=None, help='Number of past values to consider')
-    parser.add_argument('--num-fut', type=int, default=None, help='Number of future values to predict')
-    parser.add_argument('--nan-percentage', type=float, default=None, help='Percentage of NaN values to insert')
-
-    parser.add_argument("--is-null-embedding", action='store_true', help="Use null embedding")
-
-    parser.add_argument("--d-model", type=int, default=None)
-    parser.add_argument("--num-heads", type=int, default=None)
-    parser.add_argument("--dff", type=int, default=None)
-    parser.add_argument("--gru", type=int, default=None)
-    parser.add_argument("--fff", type=int, nargs="+", default=None)
-    parser.add_argument("--num-layers", type=int, default=None)
-
-    parser.add_argument("--lr", type=float, default=None, help="Learning rate")
-    parser.add_argument("--l2-reg", type=float, default=None, help="L2 regularization")
-    parser.add_argument("--dropout", type=float, default=None, help="Dropout rate")
-
-    parser.add_argument('--force-data-step', action='store_true', help='Force data step')
-
     args = parser.parse_args()
     print(args)
-    conf_file = args.file
+    # conf_file = args.file
+    conf_file = f'./data/params_{args.dataset}.json'
     assert os.path.exists(conf_file), 'Configuration file does not exist'
 
     with open(conf_file, 'r') as f:
         conf = json.load(f)
-    conf['path_params']['dev'] = args.dev
+    conf["model_params"] = conf.get("model_params", dict())
+    conf["model_params"]["nn_params"] = conf["model_params"].get("nn_params", dict())
+
     conf['path_params']['force_data_step'] = args.force_data_step
+    conf['path_params']['dev'] = args.dev
+    conf['model_params']['cpu'] = args.cpu
     conf['model_params']['seed'] = args.seed
 
-    if args.num_past is not None:
-        conf['prep_params']['ts_params']['num_past'] = args.num_past
-    if args.num_fut is not None:
-        conf['prep_params']['ts_params']['num_fut'] = args.num_fut
-    if args.nan_percentage is not None:
-        conf['path_params']['nan_percentage'] = args.nan_percentage
+    conf["prep_params"]["ts_params"]["dataset"] = args.dataset
+    conf['prep_params']['ts_params']["nan_percentage"] = args.nan_percentage
+    conf['prep_params']['ts_params']['num_past'] = args.num_past
+    conf['prep_params']['ts_params']['num_fut'] = args.num_fut
 
-    conf["model_params"]["nn_params"]["is_null_embedding"] = args.is_null_embedding
+    conf['model_params']['nn_params']['kernel_size'] = args.kernel_size
+    conf['model_params']['nn_params']['d_model'] = args.d_model
+    conf['model_params']['nn_params']['num_heads'] = args.num_heads
+    conf['model_params']['nn_params']['dff'] = args.dff
+    conf['model_params']['nn_params']['num_layers'] = args.num_layers
+    conf['model_params']['nn_params']['gru'] = args.gru
+    fff = args.fff
+    if fff[-1] == 1:
+        fff = fff[:-1]
+    conf['model_params']['nn_params']['fff'] = fff
+    conf['model_params']['nn_params']['l2_reg'] = args.l2_reg
+    conf['model_params']['nn_params']['dropout_rate'] = args.dropout
+    conf['model_params']['nn_params']['activation'] = args.activation
 
-    if args.d_model is not None:
-        conf['model_params']['nn_params']['d_model'] = args.d_model
-    if args.num_heads is not None:
-        conf['model_params']['nn_params']['num_heads'] = args.num_heads
-    if args.dff is not None:
-        conf['model_params']['nn_params']['dff'] = args.dff
-    if args.gru is not None:
-        conf['model_params']['nn_params']['gru'] = args.gru
-    if args.fff is not None:
-        fff = args.fff
-        if fff[-1] == 1:
-            fff = fff[:-1]
-        conf['model_params']['nn_params']['fff'] = fff
-    if args.num_layers is not None:
-        conf['model_params']['nn_params']['num_layers'] = args.num_layers
+    conf['model_params']['scaler_type'] = args.scaler_type
+    conf['model_params']['lr'] = args.lr
+    conf['model_params']['loss'] = args.loss
+    conf['model_params']['batch_size'] = args.batch_size
+    conf['model_params']['epochs'] = args.epochs
+    conf['model_params']['patience'] = args.patience
 
-    if args.lr is not None:
-        conf['model_params']['lr'] = args.lr
-    if args.l2_reg is not None:
-        conf['model_params']['nn_params']['l2_reg'] = args.l2_reg
-    if args.dropout is not None:
-        conf['model_params']['nn_params']['dropout_rate'] = args.dropout
-
-    if not conf['path_params']['ex_filename']:
-        conf['path_params']['ex_filename'] = 'all'
-    ex_name = conf['path_params']['ex_filename']
-
-    if 'patience' not in conf['model_params']:
-        conf['model_params']['patience'] = None
+    # if not conf['path_params']['ex_filename']:
+    #     conf['path_params']['ex_filename'] = 'all'
+    # ex_name = conf['path_params']['ex_filename']
 
     if args.dev:
         ts_name, ts_ext = os.path.splitext(conf['path_params']['ts_filename'])
         conf['path_params']['ts_filename'] = f"{ts_name}_dev{ts_ext}"
-        if ex_name == 'all':
-            conf['path_params']['ex_filename'] = 'all_dev'
-        else:
-            ex_name, ex_ext = os.path.splitext(ex_name)
-            conf['path_params']['ex_filename'] = f"{ex_name}_dev{ex_ext}"
+        # if ex_name == 'all':
+        #     conf['path_params']['ex_filename'] = 'all_dev'
+        # else:
+        #     ex_name, ex_ext = os.path.splitext(ex_name)
+        #     conf['path_params']['ex_filename'] = f"{ex_name}_dev{ex_ext}"
         if conf['path_params']['ctx_filename']:
             ctx_name, ctx_ext = os.path.splitext(conf['path_params']['ctx_filename'])
             conf['path_params']['ctx_filename'] = f"{ctx_name}_dev{ctx_ext}"
         conf['model_params']['epochs'] = 3
-        if conf['model_params']['patience']: conf['model_params']['patience'] = 1
-
-    conf['model_params']['cpu'] = args.cpu
+        conf['model_params']['patience'] = 1
 
     return conf['path_params'], conf['prep_params'], conf['eval_params'], conf['model_params']
 
@@ -361,18 +361,22 @@ if __name__ == '__main__':
 
     os.makedirs(data_dir, exist_ok=True)
 
-    subset = path_params['ex_filename']
     dataset = prep_params['ts_params']['dataset']
-    if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
-        subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
-    elif 'all' in subset:
-        path_params['ex_filename'] = None
-    else:
-        subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
+    # subset = path_params['ex_filename']
+    # if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
+    #     subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
+    # elif 'all' in subset:
+    #     path_params['ex_filename'] = None
+    # else:
+    #     subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
     nan_percentage = prep_params['ts_params']['nan_percentage']
     num_past = prep_params['ts_params']['num_past']
     num_fut = prep_params['ts_params']['num_fut']
+
     num_spt = prep_params['spt_params']['num_spt']
+    max_dist_th = prep_params['spt_params']['max_dist_th']
+    subset = f"spt{num_spt}_th{max_dist_th}"
+    if path_params["dev"]: subset += "_dev"
 
     out_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
     print('out_name:', out_name)
