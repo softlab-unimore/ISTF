@@ -13,7 +13,7 @@
             "num_fut": 7,
             "label_col": "TAVG",
             "freq": "D",
-            "time_feats": ["M", "WY"]
+            "time_feats": ["M", "WY"],
         },
         "spt_params": {
             "num_spt": 2,
@@ -32,7 +32,6 @@
     },
 
     "model_params": {
-        "scaler_type": "standard",
         "nn_params": {
             "kernel_size": 5,
             "d_model": 32,

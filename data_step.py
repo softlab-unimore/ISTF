@@ -8,109 +8,12 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
+# from ablation import parse_params
 from data_step_refactor import time_encoding, link_spatial_data_water_body, link_spatial_data, null_distance_array, \
     extract_windows
 from istf.dataset.read import load_data
 from istf.preparation import define_feature_mask, prepare_train_test
 from istf.utils import IQRMasker
-
-
-def parse_params():
-    """ Parse input parameters. """
-
-    parser = argparse.ArgumentParser()
-    # parser.add_argument('-f', '--file', type=str, required=True,
-    #                     help='the path where the configuration is stored.')
-
-    parser.add_argument("--dataset", type=str, required=True, help="Dataset")
-    parser.add_argument('--nan-percentage', type=float, required=True, help='Percentage of NaN values to insert')
-    parser.add_argument('--num-past', type=int, required=True, help='Number of past values to consider')
-    parser.add_argument('--num-fut', type=int, required=True, help='Number of future values to predict')
-
-    parser.add_argument("--kernel-size", type=int, default=5)
-    parser.add_argument("--d-model", type=int, default=32)
-    parser.add_argument("--num-heads", type=int, default=4)
-    parser.add_argument("--dff", type=int, default=64)
-    parser.add_argument("--num-layers", type=int, default=2)
-    parser.add_argument("--gru", type=int, default=64)
-    parser.add_argument("--fff", type=int, nargs="+", default=[128])
-    parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
-    parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
-    parser.add_argument("--activation", type=str, default="relu", help="Activation function")
-
-    parser.add_argument("--scaler-type", type=str, default="standard", help="Scaler type")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--loss", type=str, default="mse", help="Loss function")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size")
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
-    parser.add_argument("--patience", type=int, default=20, help="Early stopping patience; -1 no early stopping")
-
-    parser.add_argument('--force-data-step', action='store_true', help='Force data step')
-    parser.add_argument('--dev', action='store_true', help='Run on development data')
-    parser.add_argument('--cpu', action='store_true', help='Run on CPU')
-    parser.add_argument('--seed', type=int, default=42, help='Random seed')
-
-    args = parser.parse_args()
-    print(args)
-    # conf_file = args.file
-    conf_file = f'./data/params_{args.dataset}.json'
-    assert os.path.exists(conf_file), 'Configuration file does not exist'
-
-    with open(conf_file, 'r') as f:
-        conf = json.load(f)
-    conf["model_params"] = conf.get("model_params", dict())
-    conf["model_params"]["nn_params"] = conf["model_params"].get("nn_params", dict())
-
-    conf['path_params']['force_data_step'] = args.force_data_step
-    conf['path_params']['dev'] = args.dev
-    conf['model_params']['cpu'] = args.cpu
-    conf['model_params']['seed'] = args.seed
-
-    conf["prep_params"]["ts_params"]["dataset"] = args.dataset
-    conf['prep_params']['ts_params']["nan_percentage"] = args.nan_percentage
-    conf['prep_params']['ts_params']['num_past'] = args.num_past
-    conf['prep_params']['ts_params']['num_fut'] = args.num_fut
-
-    conf['model_params']['nn_params']['kernel_size'] = args.kernel_size
-    conf['model_params']['nn_params']['d_model'] = args.d_model
-    conf['model_params']['nn_params']['num_heads'] = args.num_heads
-    conf['model_params']['nn_params']['dff'] = args.dff
-    conf['model_params']['nn_params']['num_layers'] = args.num_layers
-    conf['model_params']['nn_params']['gru'] = args.gru
-    fff = args.fff
-    if fff[-1] == 1:
-        fff = fff[:-1]
-    conf['model_params']['nn_params']['fff'] = fff
-    conf['model_params']['nn_params']['l2_reg'] = args.l2_reg
-    conf['model_params']['nn_params']['dropout_rate'] = args.dropout
-    conf['model_params']['nn_params']['activation'] = args.activation
-
-    conf['model_params']['scaler_type'] = args.scaler_type
-    conf['model_params']['lr'] = args.lr
-    conf['model_params']['loss'] = args.loss
-    conf['model_params']['batch_size'] = args.batch_size
-    conf['model_params']['epochs'] = args.epochs
-    conf['model_params']['patience'] = args.patience
-
-    # if not conf['path_params']['ex_filename']:
-    #     conf['path_params']['ex_filename'] = 'all'
-    # ex_name = conf['path_params']['ex_filename']
-
-    if args.dev:
-        ts_name, ts_ext = os.path.splitext(conf['path_params']['ts_filename'])
-        conf['path_params']['ts_filename'] = f"{ts_name}_dev{ts_ext}"
-        # if ex_name == 'all':
-        #     conf['path_params']['ex_filename'] = 'all_dev'
-        # else:
-        #     ex_name, ex_ext = os.path.splitext(ex_name)
-        #     conf['path_params']['ex_filename'] = f"{ex_name}_dev{ex_ext}"
-        if conf['path_params']['ctx_filename']:
-            ctx_name, ctx_ext = os.path.splitext(conf['path_params']['ctx_filename'])
-            conf['path_params']['ctx_filename'] = f"{ctx_name}_dev{ctx_ext}"
-        conf['model_params']['epochs'] = 3
-        conf['model_params']['patience'] = 1
-
-    return conf['path_params'], conf['prep_params'], conf['eval_params'], conf['model_params']
 
 
 def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
@@ -202,15 +105,32 @@ def apply_scaler(ts_dict, features, train_end_excl, scaler_init):
     return ts_dict, scalers
 
 
-def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_type=None):
+def get_conf_name(dataset, nan_percentage, num_past, num_fut, num_spt, max_dist_th, dev):
+    subset = f"spt{num_spt}_th{max_dist_th}"
+    if dev: subset += "_dev"
+    return f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
+
+
+def main(path_params: dict, prep_params: dict, eval_params: dict):
     ts_params = prep_params["ts_params"]
-    # feat_params = prep_params["feat_params"]
     spt_params = prep_params["spt_params"]
     exg_params = prep_params["exg_params"]
+
+    conf_name = get_conf_name(
+        dataset=ts_params['dataset'],
+        nan_percentage=ts_params['nan_percentage'],
+        num_past=ts_params['num_past'],
+        num_fut=ts_params['num_fut'],
+        num_spt=spt_params['num_spt'],
+        max_dist_th=spt_params['max_dist_th'],
+        dev=path_params['dev']
+    )
+    print('Configuration:', conf_name)
 
     label_col = ts_params["label_col"]
     exg_cols = exg_params["features"]
     cols = [label_col] + exg_cols
+    scaler_type = ts_params["scaler_type"]
 
     # Load dataset
     ts_dict, spt_dict = load_data(
@@ -317,7 +237,7 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         max_null_th=eval_params["null_th"]
     )
 
-    res = prepare_train_test(
+    D = prepare_train_test(
         x_array=x_array,
         y_array=y_array,
         time_array=time_array,
@@ -328,18 +248,18 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         valid_start=eval_params['valid_start'],
         spt_dict=spt_dict
     )
-    print(f"X train: {len(res['x_train'])}")
-    print(f"X valid: {len(res['x_valid'])}")
-    print(f"X test: {len(res['x_test'])}")
+    print(f"X train: {len(D['x_train'])}")
+    print(f"X valid: {len(D['x_valid'])}")
+    print(f"X test: {len(D['x_test'])}")
 
     # Save extra params in train test dictionary
-    res['x_feat_mask'] = x_feature_mask
-    res['scalers'] = spt_scalers
+    D['x_feat_mask'] = x_feature_mask
+    D['scalers'] = spt_scalers
 
     arr_list = (
-            [res['x_train']] + [res['x_test']] + [res['x_valid']] +
-            res['spt_train'] + res['spt_test'] + res['spt_valid'] +
-            res['exg_train'] + res['exg_test'] + res['exg_valid']
+            [D['x_train']] + [D['x_test']] + [D['x_valid']] +
+            D['spt_train'] + D['spt_test'] + D['spt_valid'] +
+            D['exg_train'] + D['exg_test'] + D['exg_valid']
     )
     nan, tot = 0, 0
     for x in arr_list:
@@ -347,46 +267,50 @@ def data_step(path_params: dict, prep_params: dict, eval_params: dict, scaler_ty
         tot += x[:, :, 1].size
     print(f"Null values in windows: {nan}/{tot} ({nan/tot:.2%})")
 
-    return res
+    pickle_path = os.path.join('./output/pickle', f"{conf_name}.pickle")
+    with open(pickle_path, "wb") as f:
+        print('Saving to', pickle_path, '...', end='', flush=True)
+        pickle.dump(D, f)
+        print(' done!')
+
+    # return D
 
 
 if __name__ == '__main__':
-    path_params, prep_params, eval_params, model_params = parse_params()
-    _seed = model_params['seed']
-    if _seed is not None:
-        random.seed(_seed)
-        np.random.seed(_seed)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str, required=True, help="Dataset")
+    parser.add_argument('--nan-percentage', type=float, required=True, help='Percentage of NaN values to insert')
+    parser.add_argument('--num-past', type=int, required=True, help='Number of past values to consider')
+    parser.add_argument('--num-future', type=int, required=True, help='Number of future values to predict')
+    parser.add_argument("--scaler-type", type=str, default="standard", help="Scaler type")
+    parser.add_argument('--dev', action='store_true', help='Run on development data')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed')
 
-    data_dir = './output/pickle' + ('_seed' + str(_seed) if _seed != 42 else '')
+    args = parser.parse_args()
+    print(args)
+    conf_file = f'./data/params_{args.dataset}.json'
+    assert os.path.exists(conf_file), 'Configuration file does not exist'
+    with open(conf_file, 'r') as f:
+        conf = json.load(f)
+    conf["model_params"] = conf.get("model_params", dict())
 
-    os.makedirs(data_dir, exist_ok=True)
+    conf['path_params']['dev'] = args.dev
 
-    dataset = prep_params['ts_params']['dataset']
-    # subset = path_params['ex_filename']
-    # if dataset == 'adbpo' and 'exg_w_tp_t2m' in subset:
-    #     subset = os.path.basename(subset).replace('exg_w_tp_t2m', 'all').replace('.pickle', '')
-    # elif 'all' in subset:
-    #     path_params['ex_filename'] = None
-    # else:
-    #     subset = os.path.basename(subset).replace('subset_agg_', '').replace('.csv', '')
-    nan_percentage = prep_params['ts_params']['nan_percentage']
-    num_past = prep_params['ts_params']['num_past']
-    num_fut = prep_params['ts_params']['num_fut']
+    conf["prep_params"]["ts_params"]["dataset"] = args.dataset
+    conf['prep_params']['ts_params']["nan_percentage"] = args.nan_percentage
+    conf['prep_params']['ts_params']['num_past'] = args.num_past
+    conf['prep_params']['ts_params']['num_fut'] = args.num_future
+    conf['prep_params']['ts_params']['scaler_type'] = args.scaler_type
 
-    num_spt = prep_params['spt_params']['num_spt']
-    max_dist_th = prep_params['spt_params']['max_dist_th']
-    subset = f"spt{num_spt}_th{max_dist_th}"
-    if path_params["dev"]: subset += "_dev"
+    if args.dev:
+        ts_name, ts_ext = os.path.splitext(conf['path_params']['ts_filename'])
+        conf['path_params']['ts_filename'] = f"{ts_name}_dev{ts_ext}"
+        if conf['path_params']['ctx_filename']:
+            ctx_name, ctx_ext = os.path.splitext(conf['path_params']['ctx_filename'])
+            conf['path_params']['ctx_filename'] = f"{ctx_name}_dev{ctx_ext}"
 
-    out_name = f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
-    print('out_name:', out_name)
-    pickle_path = os.path.join(data_dir, f"{out_name}.pickle")
+    seed = args.seed
+    random.seed(seed)
+    np.random.seed(seed)
 
-    train_test_dict = data_step(
-        path_params, prep_params, eval_params, scaler_type=model_params['scaler_type']
-    )
-
-    with open(pickle_path, "wb") as f:
-        print('Saving to', pickle_path, '...', end='', flush=True)
-        pickle.dump(train_test_dict, f)
-        print(' done!')
+    main(conf['path_params'], conf['prep_params'], conf['eval_params'])

@@ -55,11 +55,10 @@ class ModelWrapper(object):
             epochs: int = 50,
             batch_size: int = 32,
             verbose: int = 0,
-            val_X: np.ndarray = None, val_y: np.ndarray = None,
+            X_val: np.ndarray = None, y_val: np.ndarray = None,
             early_stop_patience: int = -1,
             checkpoint_threshold: float = None
     ):
-
         model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
             self.checkpoint_path,
             monitor='val_loss',
@@ -89,7 +88,7 @@ class ModelWrapper(object):
             y=y,
             epochs=epochs,
             batch_size=batch_size,
-            validation_data=(val_X, val_y),
+            validation_data=(X_val, y_val),
             verbose=verbose,
             callbacks=callbacks
         )

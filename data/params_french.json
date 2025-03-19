@@ -16,8 +16,8 @@
             "max_dist_th": 0.25
         },
         "exg_params": {
-            "features": ["tp", "e"],
-            "features_stn": ["prof"]
+            "features_stn": ["prof"],
+            "features": ["tp", "e"]
         }
     },
 
