@@ -157,7 +157,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
         for col in cols:
             nan += ts_dict[stn][col].isna().sum()
             tot += len(ts_dict[stn][col])
-    print(f"Null values after IQR masking: {nan}/{tot} ({nan/tot:.2%})")
+    print(f"Missing values after IQR masking: {nan}/{tot} ({nan/tot:.2%})")
 
     if scaler_type == "minmax":
         Scaler = MinMaxScaler
@@ -201,6 +201,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
 
     num_spt = spt_params["num_spt"]
 
+    # A minimum number of nearby stations is used as a heuristic to reduce the size of the dataset
     link_spatial_data_fn = {
         "french": link_spatial_data_water_body,
         "ushcn": link_spatial_data,
@@ -258,14 +259,17 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
 
     arr_list = (
             [D['x_train']] + [D['x_test']] + [D['x_valid']] +
-            D['spt_train'] + D['spt_test'] + D['spt_valid'] +
+            # D['spt_train'] + D['spt_test'] + D['spt_valid'] +
             D['exg_train'] + D['exg_test'] + D['exg_valid']
     )
     nan, tot = 0, 0
     for x in arr_list:
         nan += x[:, :, 1].sum().sum()
         tot += x[:, :, 1].size
-    print(f"Null values in windows: {nan}/{tot} ({nan/tot:.2%})")
+    tot -= tot * len(exg_params["features_stn"]) / (len(exg_cols)+1)
+    print(f"Missing values in windows (excluding static features): {int(nan)}/{int(tot)} ({nan/tot:.2%})")
+
+    # add static features to the exogenous arrays, accoding to the station indicated in id_array
 
     pickle_path = os.path.join('./output/pickle', f"{conf_name}.pickle")
     with open(pickle_path, "wb") as f:
