@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from tqdm import tqdm
 
 
@@ -192,3 +193,120 @@ def extract_windows(ts_dict, label_col, exg_cols, num_spt, time_feats, num_past,
     id_array = np.array(id_array)
 
     return X, X_exg, X_spt, y, time_array, id_array
+
+
+class IQRMasker(BaseEstimator, TransformerMixin):
+
+    def __init__(self, multiplier=1.5):
+        self.multiplier = multiplier
+        self.lbound, self.ubound = 0., 0.
+
+    def fit(self, X, y=None):
+        Q1 = np.nanquantile(X, 0.25)
+        Q3 = np.nanquantile(X, 0.75)
+        IQR = Q3 - Q1
+
+        # Define the acceptable range
+        self.lbound = Q1 - self.multiplier * IQR
+        self.ubound = Q3 + self.multiplier * IQR
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+        X[(X < self.lbound) | (X > self.ubound)] = None
+        return X
+
+
+def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
+    for stn in ts_dict:
+        for f in features_to_mask:
+            iqr_masker = IQRMasker()
+
+            ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
+            if ts_train.isna().all(): continue
+            ts_train = iqr_masker.fit_transform(ts_train.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
+
+            ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
+            if ts_test.isna().all(): continue
+            ts_test = iqr_masker.transform(ts_test.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f] = ts_test.reshape(-1)
+
+    return ts_dict
+
+
+def apply_iqr_masker(ts_dict, features_to_mask, train_end_excl):
+    for f in features_to_mask:
+        ts_all_train = []
+        for stn in ts_dict:
+            ts = ts_dict[stn][f]
+            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
+        ts_all_train = np.concatenate(ts_all_train)
+        iqr_masker = IQRMasker().fit(ts_all_train.reshape(-1, 1))
+
+        for stn in ts_dict:
+            ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
+            if ts_train.isna().all(): continue
+            ts_train = iqr_masker.transform(ts_train.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
+
+            ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
+            if ts_test.isna().all(): continue
+            ts_test = iqr_masker.transform(ts_test.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f] = ts_test.reshape(-1)
+
+    return ts_dict
+
+
+def apply_scaler_by_stn(ts_dict, features, train_end_excl, scaler_init):
+    scalers = dict()
+    for stn, ts in ts_dict.items():
+        scalers[stn] = dict()
+        for f in features:
+            scaler = scaler_init()
+
+            train_ts = ts.loc[ts.index < train_end_excl, f]
+            if train_ts.isna().all(): continue
+            train_ts = scaler.fit_transform(train_ts.values.reshape(-1, 1))
+            ts.loc[ts.index < train_end_excl, f] = train_ts.reshape(-1)
+
+            scalers[stn][f] = scaler
+
+            test_ts = ts.loc[ts.index >= train_end_excl, f]
+            if test_ts.isna().all(): continue
+            test_ts = scaler.transform(test_ts.values.reshape(-1, 1))
+            ts.loc[ts.index >= train_end_excl, f] = test_ts.reshape(-1)
+
+    return ts_dict, scalers
+
+
+def apply_scaler(ts_dict, features, train_end_excl, scaler_init):
+    scalers = dict()
+    for f in features:
+        ts_all_train = []
+        for stn in ts_dict:
+            ts = ts_dict[stn][f]
+            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
+        ts_all_train = np.concatenate(ts_all_train)
+        scaler = scaler_init().fit(ts_all_train.reshape(-1, 1))
+
+        for stn in ts_dict:
+            ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
+            if ts_train.isna().all(): continue
+            ts_train = scaler.transform(ts_train.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
+
+            ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
+            if ts_test.isna().all(): continue
+            ts_test = scaler.transform(ts_test.values.reshape(-1, 1))
+            ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f] = ts_test.reshape(-1)
+
+        scalers[f] = scaler
+
+    return ts_dict, scalers
+
+
+def get_conf_name(dataset, nan_percentage, num_past, num_fut, num_spt, max_dist_th, dev):
+    subset = f"spt{num_spt}_th{max_dist_th}"
+    if dev: subset += "_dev"
+    return f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"

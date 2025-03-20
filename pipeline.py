@@ -10,6 +10,7 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 
+import data_step_refactor
 from istf.metrics import compute_metrics
 from istf.model.wrapper import ModelWrapper
 from istf.preprocessing import TIME_N_VALUES
@@ -157,7 +158,7 @@ def main(path_params, prep_params, eval_params, model_params):
     os.makedirs(pickle_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
 
-    conf_name = data_step.get_conf_name(
+    conf_name = data_step_refactor.get_conf_name(
         prep_params['ts_params']['dataset'],
         prep_params['ts_params']['nan_percentage'],
         prep_params['ts_params']['num_past'],
