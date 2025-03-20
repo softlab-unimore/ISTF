@@ -269,8 +269,6 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
     tot -= tot * len(exg_params["features_stn"]) / (len(exg_cols)+1)
     print(f"Missing values in windows (excluding static features): {int(nan)}/{int(tot)} ({nan/tot:.2%})")
 
-    # add static features to the exogenous arrays, accoding to the station indicated in id_array
-
     pickle_path = os.path.join('./output/pickle', f"{conf_name}.pickle")
     with open(pickle_path, "wb") as f:
         print('Saving to', pickle_path, '...', end='', flush=True)
