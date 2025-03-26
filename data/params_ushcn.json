@@ -7,13 +7,9 @@
 
     "prep_params": {
         "ts_params": {
-            "dataset": "ushcn",
-            "nan_percentage": 0.5,
-            "num_past": 48,
-            "num_fut": 7,
             "label_col": "TAVG",
             "freq": "D",
-            "time_feats": ["M", "WY"],
+            "time_feats": ["M", "WY"]
         },
         "spt_params": {
             "num_spt": 2,
@@ -29,25 +25,5 @@
         "valid_start": "1992-01-01",
         "test_start": "1993-01-01",
         "null_th": 12
-    },
-
-    "model_params": {
-        "nn_params": {
-            "kernel_size": 5,
-            "d_model": 32,
-            "num_heads": 4,
-            "dff": 64,
-            "gru": 64,
-            "fff": [128],
-            "activation": "relu",
-            "num_layers": 2,
-            "dropout_rate": 0.1,
-            "l2_reg": 0.01
-        },
-        "lr": 0.0001,
-        "loss": "mse",
-        "batch_size": 64,
-        "epochs": 100,
-        "patience": 20
     }
 }
