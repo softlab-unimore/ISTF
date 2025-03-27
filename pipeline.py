@@ -8,7 +8,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 import data_step_refactor
 from istf.metrics import compute_metrics
@@ -80,7 +80,6 @@ import data_step
 
 def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
     model_params = train_test_dict['params']['model_params']
-    scaler_type = train_test_dict['params']['prep_params']["ts_params"]['scaler_type']
 
     nn_params = model_params['nn_params']
     loss = model_params['loss']
@@ -120,12 +119,13 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
 
     res = {}
     scalers = train_test_dict['scalers']
+    scaler_type = train_test_dict['scaler_type']
     for id in scalers:
         for f in scalers[id]:
             if isinstance(scalers[id][f], dict):
                 scaler = {
                     "standard": StandardScaler,
-                    # "minmax": MinMaxScaler,
+                    "minmax": MinMaxScaler,
                 }[scaler_type]()
                 for k, v in scalers[id][f].items():
                     setattr(scaler, k, v)
@@ -230,23 +230,23 @@ def main(path_params, prep_params, eval_params, model_params):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", type=str, required=True, help="Dataset")
+    parser.add_argument("--dataset", type=str, required=True, help="Dataset [french, ushcn]")
     parser.add_argument('--nan-percentage', type=float, required=True, help='Percentage of NaN values to insert')
     parser.add_argument('--num-past', type=int, required=True, help='Number of past values to consider')
     parser.add_argument('--num-future', type=int, required=True, help='Number of future values to predict')
+    parser.add_argument("--scaler-type", type=str, default="standard", help="Scaler type [standard, minmax]")
 
-    parser.add_argument("--kernel-size", type=int, default=5)
-    parser.add_argument("--d-model", type=int, default=32)
-    parser.add_argument("--num-heads", type=int, default=4)
-    parser.add_argument("--dff", type=int, default=64)
-    parser.add_argument("--num-layers", type=int, default=2)
-    parser.add_argument("--gru", type=int, default=64)
-    parser.add_argument("--fff", type=int, nargs="+", default=[128])
+    parser.add_argument("--kernel-size", type=int, default=5, help="Embedder kernel size")
+    parser.add_argument("--d-model", type=int, default=32, help="Embedding dimension")
+    parser.add_argument("--num-heads", type=int, default=4, help="Number of attention heads")
+    parser.add_argument("--dff", type=int, default=64, help="Encoder internal feed-forward dimension")
+    parser.add_argument("--num-layers", type=int, default=2, help="Number of encoder layers")
+    parser.add_argument("--gru", type=int, default=64, help="GRU units")
+    parser.add_argument("--fff", type=int, nargs="+", default=[128], help="Sequence of feed-forward layer dimensions")
     parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
     parser.add_argument("--activation", type=str, default="relu", help="Activation function")
 
-    parser.add_argument("--scaler-type", type=str, default="standard", help="Scaler type")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--loss", type=str, default="mse", help="Loss function")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size")
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     parser.add_argument("--no-local-global", action='store_true', help='Ablation without local-global attention')
     parser.add_argument("--no-gru", action='store_true', help='Ablation without GRU')
 
-    parser.add_argument('--force-data-step', action='store_true', help='Force data step')
+    parser.add_argument('--force-data-step', action='store_true', help='Run data step even if pickle exists')
     parser.add_argument('--dev', action='store_true', help='Run on development data')
     parser.add_argument('--cpu', action='store_true', help='Run on CPU')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')

@@ -159,6 +159,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
 
     # Save extra params in train test dictionary
     D['x_feat_mask'] = x_feature_mask
+    D["scaler_type"] = scaler_type
     D['scalers'] = spt_scalers
 
     arr_list = (

@@ -45,7 +45,7 @@ class FixedEmbedding(tf.keras.layers.Layer):
 
 
 class TemporalEmbedding(tf.keras.layers.Layer):
-    def __init__(self, d_model, kernel_size, feature_mask, time_features=None, l2_reg=None):
+    def __init__(self, d_model, kernel_size, feature_mask, time_features=None, activation="gelu", l2_reg=None):
         super().__init__()
         # Embedding dimension & layer
         self.d_model = d_model
@@ -54,7 +54,7 @@ class TemporalEmbedding(tf.keras.layers.Layer):
             filters=d_model,
             kernel_size=kernel_size,
             padding='same',
-            activation='gelu',
+            activation=activation,
             kernel_regularizer=l2_reg
         )
 

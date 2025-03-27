@@ -24,7 +24,6 @@ class ISTFModel(tf.keras.Model):
             encoder_layer_cls="MVEncoderLayerLocalGlobalAttn",
             predictor_cls="PredictorGRU",
             l2_reg=None,
-            **kwargs
     ):
         super().__init__()
         feature_mask = np.array(feature_mask)
@@ -57,6 +56,7 @@ class ISTFModel(tf.keras.Model):
                 kernel_size=self.kernel_size,
                 feature_mask=self.feature_mask,
                 time_features=self.time_features,
+                activation=self.activation,
                 l2_reg=self.l2_reg
             )
             self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
@@ -76,10 +76,13 @@ class ISTFModel(tf.keras.Model):
         ) for _ in range(self.num_layers)]
 
         if self.predictor_cls == 'PredictorFlatten':
-            self.final_layers = PredictorFlatten(self.fff, self.dropout_rate, self.l2_reg)
+            self.final_layers = PredictorFlatten(
+                fff=self.fff, activation=self.activation, dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
+            )
         else:  # if self.predictor_cls == 'gru':
-            self.final_layers = PredictorGRU(self.gru, self.fff, self.dropout_rate, self.l2_reg, gru_bidirectional=False)
-
+            self.final_layers = PredictorGRU(
+                gru_units=self.gru, fff=self.fff, activation=self.activation, dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
+            )
 
     def get_config(self):
         config = super().get_config().copy()
@@ -178,17 +181,15 @@ class MVEncoderLayerLocalGlobalAttn(tf.keras.layers.Layer):
 
 class PredictorGRU(tf.keras.layers.Layer):
 
-    def __init__(self, gru_units, fff, dropout_rate, l2_reg, *, gru_bidirectional=False):
+    def __init__(self, gru_units, fff, activation="gelu", dropout_rate=0.1, l2_reg=None):
         super().__init__()
         l2_reg = tf.keras.regularizers.l2(l2_reg) if l2_reg else None
         self.gru = tf.keras.layers.GRU(gru_units, kernel_regularizer=l2_reg, recurrent_regularizer=l2_reg)
-        if gru_bidirectional:
-            self.gru = tf.keras.layers.Bidirectional(self.gru)
         final_layers = []
         for units in fff:
             final_layers.extend([
                 tf.keras.layers.Dropout(dropout_rate),
-                tf.keras.layers.Dense(units, activation='gelu', kernel_regularizer=l2_reg)
+                tf.keras.layers.Dense(units, activation=activation, kernel_regularizer=l2_reg)
             ])
         final_layers.extend([
             tf.keras.layers.Dropout(dropout_rate),
@@ -204,7 +205,7 @@ class PredictorGRU(tf.keras.layers.Layer):
 
 class PredictorFlatten(tf.keras.layers.Layer):
 
-    def __init__(self, fff, dropout_rate, l2_reg):
+    def __init__(self, fff, activation="gelu", dropout_rate=0.1, l2_reg=None):
         super().__init__()
         l2_reg = tf.keras.regularizers.l2(l2_reg) if l2_reg else None
         self.flatten = tf.keras.layers.Flatten()
@@ -212,7 +213,7 @@ class PredictorFlatten(tf.keras.layers.Layer):
         for units in fff:
             final_layers.extend([
                 tf.keras.layers.Dropout(dropout_rate),
-                tf.keras.layers.Dense(units, activation='gelu', kernel_regularizer=l2_reg)
+                tf.keras.layers.Dense(units, activation=activation, kernel_regularizer=l2_reg)
             ])
         final_layers.extend([
             tf.keras.layers.Dropout(dropout_rate),
