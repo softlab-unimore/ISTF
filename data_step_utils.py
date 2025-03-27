@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from tqdm import tqdm
 
 
@@ -101,7 +102,6 @@ def link_spatial_data(
     }
 
     ts_dict_ = dict()
-    # for stn_1 in list(spt_dict.keys()):
     for stn_1, ts_1 in tqdm(ts_dict.items(), desc='Station'):
         dists = spt_dict[stn_1]
         if len(dists) < num_spt:
@@ -112,7 +112,6 @@ def link_spatial_data(
         selector = np.argpartition(neighbor_nulls, num_spt - 1)[:num_spt]
         stn_neighbors = dists.index.values[selector]
 
-        # ts_1 = ts_dict[stn_1]
         for s, stn_2 in enumerate(stn_neighbors):
             ts_2 = ts_dict[stn_2][[label_col, f"{label_col}_is_null"]]
             ts_2.columns = [f"spt{s}", f"spt{s}_is_null"]
@@ -235,73 +234,26 @@ def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
     return ts_dict
 
 
-def apply_iqr_masker(ts_dict, features_to_mask, train_end_excl):
-    for f in features_to_mask:
-        ts_all_train = []
-        for stn in ts_dict:
-            ts = ts_dict[stn][f]
-            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
-        ts_all_train = np.concatenate(ts_all_train)
-        iqr_masker = IQRMasker().fit(ts_all_train.reshape(-1, 1))
-
-        for stn in ts_dict:
-            ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
-            if ts_train.isna().all(): continue
-            ts_train = iqr_masker.transform(ts_train.values.reshape(-1, 1))
-            ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
-
-            ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
-            if ts_test.isna().all(): continue
-            ts_test = iqr_masker.transform(ts_test.values.reshape(-1, 1))
-            ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f] = ts_test.reshape(-1)
-
-    return ts_dict
-
-
-def apply_scaler_by_stn(ts_dict, features, train_end_excl, scaler_init):
+def apply_scaler_by_stn(ts_dict, features, train_end_excl, scaler_type):
     scalers = dict()
+    Scaler = {
+        "minmax": MinMaxScaler,
+        "standard": StandardScaler
+    }[scaler_type]
     for stn, ts in ts_dict.items():
-        scalers[stn] = dict()
-        for f in features:
-            scaler = scaler_init()
+        scaler = Scaler()
 
-            train_ts = ts.loc[ts.index < train_end_excl, f]
-            if train_ts.isna().all(): continue
-            train_ts = scaler.fit_transform(train_ts.values.reshape(-1, 1))
-            ts.loc[ts.index < train_end_excl, f] = train_ts.reshape(-1)
+        train_ts = ts.loc[ts.index < train_end_excl]
+        if train_ts.isna().all().any(): continue
+        train_ts = scaler.fit_transform(train_ts.values)
+        ts.loc[ts.index < train_end_excl] = train_ts
 
-            scalers[stn][f] = scaler
+        scalers[stn] = scaler
 
-            test_ts = ts.loc[ts.index >= train_end_excl, f]
-            if test_ts.isna().all(): continue
-            test_ts = scaler.transform(test_ts.values.reshape(-1, 1))
-            ts.loc[ts.index >= train_end_excl, f] = test_ts.reshape(-1)
-
-    return ts_dict, scalers
-
-
-def apply_scaler(ts_dict, features, train_end_excl, scaler_init):
-    scalers = dict()
-    for f in features:
-        ts_all_train = []
-        for stn in ts_dict:
-            ts = ts_dict[stn][f]
-            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
-        ts_all_train = np.concatenate(ts_all_train)
-        scaler = scaler_init().fit(ts_all_train.reshape(-1, 1))
-
-        for stn in ts_dict:
-            ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
-            if ts_train.isna().all(): continue
-            ts_train = scaler.transform(ts_train.values.reshape(-1, 1))
-            ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
-
-            ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
-            if ts_test.isna().all(): continue
-            ts_test = scaler.transform(ts_test.values.reshape(-1, 1))
-            ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f] = ts_test.reshape(-1)
-
-        scalers[f] = scaler
+        test_ts = ts.loc[ts.index >= train_end_excl]
+        if test_ts.isna().all().any(): continue
+        test_ts = scaler.transform(test_ts.values)
+        ts.loc[ts.index >= train_end_excl] = test_ts
 
     return ts_dict, scalers
 

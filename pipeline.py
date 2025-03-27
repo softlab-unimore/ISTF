@@ -56,8 +56,8 @@ def null_indicator_to_mask(train_test_dict):
     for n in ['train', 'test', 'valid']:
         X = train_test_dict[f'x_{n}']
         X[:, :, null_id] = 1 - X[:, :, null_id]
-        for X in train_test_dict[f'spt_{n}']:
-            X[:, :, null_id] = 1 - X[:, :, null_id]
+        # for X in train_test_dict[f'spt_{n}']:
+        #     X[:, :, null_id] = 1 - X[:, :, null_id]
         for X in train_test_dict[f'exg_{n}']:
             X[:, :, null_id] = 1 - X[:, :, null_id]
     return train_test_dict
@@ -121,22 +121,22 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
     scalers = train_test_dict['scalers']
     scaler_type = train_test_dict['scaler_type']
     for id in scalers:
-        for f in scalers[id]:
-            if isinstance(scalers[id][f], dict):
-                scaler = {
-                    "standard": StandardScaler,
-                    "minmax": MinMaxScaler,
-                }[scaler_type]()
-                for k, v in scalers[id][f].items():
-                    setattr(scaler, k, v)
-                scalers[id][f] = scaler
+        # for f in scalers[id]:
+        if isinstance(scalers[id], dict):
+            scaler = {
+                "standard": StandardScaler,
+                "minmax": MinMaxScaler,
+            }[scaler_type]()
+            for k, v in scalers[id].items():
+                setattr(scaler, k, v)
+            scalers[id] = scaler
 
     y_true = train_test_dict['y_test']
     y_pred = model.predict(X=X_test)
 
     id_array = train_test_dict['id_test']
-    y_true = np.array([list(scalers[id].values())[0].inverse_transform([y_])[0] for y_, id in zip(y_true, id_array)])
-    y_pred = np.array([list(scalers[id].values())[0].inverse_transform([y_])[0] for y_, id in zip(y_pred, id_array)])
+    y_true = np.array([scalers[id].inverse_transform([y_])[0] for y_, id in zip(y_true, id_array)])
+    y_pred = np.array([scalers[id].inverse_transform([y_])[0] for y_, id in zip(y_pred, id_array)])
     res_test = compute_metrics(y_true=y_true, y_preds=y_pred)
     res_test = {f'test_{k}': val for k, val in res_test.items()}
     res.update(res_test)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument("--fff", type=int, nargs="+", default=[128], help="Sequence of feed-forward layer dimensions")
     parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
-    parser.add_argument("--activation", type=str, default="relu", help="Activation function")
+    parser.add_argument("--activation", type=str, default="gelu", help="Activation function")
 
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--loss", type=str, default="mse", help="Loss function")

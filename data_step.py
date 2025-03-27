@@ -79,10 +79,20 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
     for stn in stns_no_data:
         ts_dict.pop(stn)
 
-    ts_dict, spt_scalers = apply_scaler_by_stn(ts_dict, cols, train_end_excl, Scaler)
-    spt_scalers = {
-        stn: {label_col: vars(spt_scalers[stn][label_col])} for stn in spt_scalers
+    ts_dict, scalers = apply_scaler_by_stn(ts_dict, cols, train_end_excl, scaler_type)
+    # spt_scalers = {
+    #     stn: {label_col: vars(spt_scalers[stn][label_col])} for stn in spt_scalers
+    # }
+    scalers = {
+        stn: {
+            "mean_": scaler.mean_[[0]],
+            "scale_": scaler.scale_[[0]],
+            "var_": scaler.var_[[0]],
+            "n_features_in_": 1,
+        }
+        for stn, scaler in scalers.items()
     }
+
 
     exg_cols = exg_cols + (exg_params['features_stn'] if 'features_stn' in exg_params else [])
     cols = [label_col] + exg_cols
@@ -147,11 +157,11 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
         y_array=y_array,
         time_array=time_array,
         id_array=id_array,
-        spt_array=spt_array,
+        # spt_array=spt_array,
         exg_array=exg_array,
         test_start=eval_params['test_start'],
         valid_start=eval_params['valid_start'],
-        spt_dict=spt_dict
+        # spt_dict=spt_dict
     )
     print(f"X train: {len(D['x_train'])}")
     print(f"X valid: {len(D['x_valid'])}")
@@ -160,11 +170,10 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
     # Save extra params in train test dictionary
     D['x_feat_mask'] = x_feature_mask
     D["scaler_type"] = scaler_type
-    D['scalers'] = spt_scalers
+    D['scalers'] = scalers
 
     arr_list = (
             [D['x_train']] + [D['x_test']] + [D['x_valid']] +
-            # D['spt_train'] + D['spt_test'] + D['spt_valid'] +
             D['exg_train'] + D['exg_test'] + D['exg_valid']
     )
     nan, tot = 0, 0
