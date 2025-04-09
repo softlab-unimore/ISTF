@@ -6,8 +6,7 @@ from sklearn.metrics.pairwise import haversine_distances
 from tqdm import tqdm
 
 from ..french.read import create_ts_dict
-from ..utils import insert_nulls_max_consecutive_thr
-from ...preparation import reindex_ts
+from ..utils import insert_nulls_max_consecutive_thr, reindex_ts
 
 
 def read_ushcn(filename: str, id_col: str, date_col: str, cols: List[str]) -> Dict[str, pd.DataFrame]:
@@ -15,7 +14,6 @@ def read_ushcn(filename: str, id_col: str, date_col: str, cols: List[str]) -> Di
     df = pd.read_csv(filename)
 
     # Transform timestamp column into datetime object
-    # df[date_col] = df[date_col].apply(lambda x: timedelta(days=x) + datetime(year=1950, month=1, day=1))
     df[date_col] = pd.to_datetime(df[date_col]).dt.date
 
     # Split time-series based on date_col and keep only the selected cols
@@ -64,8 +62,8 @@ def load_ushcn_data(
     # Read irregular time series
     ts_dict = read_ushcn(
         filename=ts_filename,
-        id_col='COOP_ID',  # id_col='UNIQUE_ID',
-        date_col='DATE',  # date_col='TIME_STAMP',
+        id_col='COOP_ID',
+        date_col='DATE',
         cols=cols
     )
 
@@ -80,7 +78,7 @@ def load_ushcn_data(
     # Extract coordinates from ushcn series
     ctx_dict = extract_ushcn_context(
         filename=ts_filename,
-        id_col='COOP_ID', # id_col='UNIQUE_ID',
+        id_col='COOP_ID',
         x_col='X', y_col='Y'
     )
 

@@ -1,22 +1,7 @@
-import calendar
-from datetime import datetime, timedelta
 from typing import Literal
 
 import numpy as np
-
-
-def move_to_end_of_week_or_month(dt: datetime.date, move_to: Literal['M', 'W']):
-    if move_to == 'W':
-        # Move to the end of the week
-        dt = dt + timedelta(days=(6 - dt.weekday()))
-    elif move_to == 'M':
-        # Move to the end of the month
-        _, last_day = calendar.monthrange(dt.year, dt.month)
-        dt = dt.replace(day=last_day)
-    else:
-        raise ValueError("Invalid move_to option. Must be 'M', 'W'.")
-
-    return dt
+import pandas as pd
 
 
 def insert_nulls_max_consecutive_thr(time_series: np.ndarray, missing_rate: float, max_consecutive: int):
@@ -69,3 +54,14 @@ def transpose_dict_of_dicts(original_dict):
             if value is not None:
                 transposed_dict[key][outer_key] = value
     return transposed_dict
+
+
+def reindex_ts(ts: pd.DataFrame, freq: Literal['M', 'W', 'D']):
+    min_dt, max_dt = ts.index.min(), ts.index.max()  # Read min max date
+    # Create a new monthly or week index
+    new_index = pd.date_range(start=min_dt, end=max_dt, freq=freq).date
+    # Check index constraint
+    assert np.isin(ts.index, new_index).all()
+    # Reindex the time-series DataFrame
+    ts = ts.reindex(new_index)
+    return ts

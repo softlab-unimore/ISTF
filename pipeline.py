@@ -8,12 +8,19 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-import data_step_refactor
-from istf.metrics import compute_metrics
 from istf.model.wrapper import ModelWrapper
-from istf.preprocessing import TIME_N_VALUES
+from data_step_utils import TIME_N_VALUES, get_conf_name
+
+
+def compute_metrics(y_true, y_preds):
+    return {
+        'r2': r2_score(y_true, y_preds),
+        'mae': mean_absolute_error(y_true, y_preds),
+        'mse': mean_squared_error(y_true, y_preds),
+    }
 
 
 def get_suffix(train_test_dict):
@@ -56,8 +63,6 @@ def null_indicator_to_mask(train_test_dict):
     for n in ['train', 'test', 'valid']:
         X = train_test_dict[f'x_{n}']
         X[:, :, null_id] = 1 - X[:, :, null_id]
-        # for X in train_test_dict[f'spt_{n}']:
-        #     X[:, :, null_id] = 1 - X[:, :, null_id]
         for X in train_test_dict[f'exg_{n}']:
             X[:, :, null_id] = 1 - X[:, :, null_id]
     return train_test_dict
@@ -91,8 +96,6 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
     # Insert data params in nn_params for building the correct model
     nn_params['feature_mask'] = train_test_dict['x_feat_mask']
     nn_params["time_features"] = train_test_dict['params']["prep_params"]["ts_params"]['time_feats']
-    # if 'encoder_layer_cls' in model_params:
-    #     nn_params['encoder_layer_cls'] = model_params['encoder_layer_cls']
 
     model = ModelWrapper(
         checkpoint_dir=checkpoint_dir,
@@ -121,7 +124,6 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
     scalers = train_test_dict['scalers']
     scaler_type = train_test_dict['scaler_type']
     for id in scalers:
-        # for f in scalers[id]:
         if isinstance(scalers[id], dict):
             scaler = {
                 "standard": StandardScaler,
@@ -150,7 +152,7 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
     return res
 
 
-def main(path_params, prep_params, eval_params, model_params):
+def main(path_params, prep_params, eval_params, model_params, seed: int = 42):
     results_dir = './output/results'
     pickle_dir = './output/pickle'
     model_dir = './output/model'
@@ -158,7 +160,7 @@ def main(path_params, prep_params, eval_params, model_params):
     os.makedirs(pickle_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
 
-    conf_name = data_step_refactor.get_conf_name(
+    conf_name = get_conf_name(
         prep_params['ts_params']['dataset'],
         prep_params['ts_params']['nan_percentage'],
         prep_params['ts_params']['num_past'],
@@ -216,6 +218,10 @@ def main(path_params, prep_params, eval_params, model_params):
     os.makedirs(checkpoint_dir, exist_ok=True)
     name += abl
     print("Architecture:", name)
+
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
 
     model_res = model_step(train_test_dict, checkpoint_dir)
 
@@ -275,7 +281,7 @@ if __name__ == '__main__':
     conf['path_params']['force_data_step'] = args.force_data_step
     conf['path_params']['dev'] = args.dev
     conf['model_params']['cpu'] = args.cpu
-    conf['model_params']['seed'] = args.seed
+    # conf['model_params']['seed'] = args.seed
 
     conf["prep_params"]["ts_params"]["dataset"] = args.dataset
     conf['prep_params']['ts_params']["nan_percentage"] = args.nan_percentage
@@ -318,11 +324,6 @@ if __name__ == '__main__':
         conf['model_params']['epochs'] = 3
         conf['model_params']['patience'] = 1
 
-    seed = args.seed
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
-
     if args.cpu:
         tf.config.set_visible_devices([], 'GPU')
     gpus = tf.config.list_physical_devices('GPU')
@@ -337,4 +338,4 @@ if __name__ == '__main__':
             # Memory growth must be set before GPUs have been initialized
             print(e)
 
-    main(conf['path_params'], conf['prep_params'], conf['eval_params'], conf['model_params'])
+    main(conf['path_params'], conf['prep_params'], conf['eval_params'], conf['model_params'], args.seed)

@@ -7,8 +7,7 @@ from sklearn.metrics.pairwise import haversine_distances
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from tqdm import tqdm
 
-from istf.dataset.utils import insert_nulls_max_consecutive_thr
-from istf.preparation import reindex_ts
+from istf.dataset.utils import insert_nulls_max_consecutive_thr, reindex_ts
 
 
 def read_french(filename: str, id_col: str, date_col: str, cols: List[str]) -> Dict[str, pd.DataFrame]:

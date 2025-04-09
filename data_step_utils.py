@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -216,14 +218,19 @@ class IQRMasker(BaseEstimator, TransformerMixin):
         return X
 
 
-def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
-    for stn in ts_dict:
-        for f in features_to_mask:
-            iqr_masker = IQRMasker()
+def apply_iqr_masker(ts_dict, features_to_mask, train_end_excl):
+    for f in features_to_mask:
+        ts_all_train = []
+        for stn in ts_dict:
+            ts = ts_dict[stn][f]
+            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
+        ts_all_train = np.concatenate(ts_all_train)
+        iqr_masker = IQRMasker().fit(ts_all_train.reshape(-1, 1))
 
+        for stn in ts_dict:
             ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
             if ts_train.isna().all(): continue
-            ts_train = iqr_masker.fit_transform(ts_train.values.reshape(-1, 1))
+            ts_train = iqr_masker.transform(ts_train.values.reshape(-1, 1))
             ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
 
             ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
@@ -234,7 +241,7 @@ def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
     return ts_dict
 
 
-def apply_scaler_by_stn(ts_dict, features, train_end_excl, scaler_type):
+def apply_scaler_by_stn(ts_dict, train_end_excl, scaler_type):
     scalers = dict()
     Scaler = {
         "minmax": MinMaxScaler,
@@ -262,3 +269,60 @@ def get_conf_name(dataset, nan_percentage, num_past, num_fut, num_spt, max_dist_
     subset = f"spt{num_spt}_th{max_dist_th}"
     if dev: subset += "_dev"
     return f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
+
+
+def prepare_train_test(
+        x_array: np.ndarray,
+        y_array: np.ndarray,
+        time_array: np.ndarray,
+        id_array: np.ndarray,
+        exg_array: List[np.ndarray],
+        test_start: str,
+        valid_start: str,
+) -> dict:
+    is_train = time_array[:, -1] < pd.to_datetime(valid_start).date()
+    is_valid = (time_array[:, -1] >= pd.to_datetime(valid_start).date()) & (time_array[:, -1] < pd.to_datetime(test_start).date())
+    is_test = (time_array[:, -1] >= pd.to_datetime(test_start).date())
+
+    res = {
+        'x_train': x_array[is_train],
+        'y_train': y_array[is_train],
+        'time_train': time_array[is_train],
+        'id_train': id_array[is_train],
+        'exg_train': [arr[is_train] for arr in exg_array],
+
+        'x_test': x_array[is_test],
+        'y_test': y_array[is_test],
+        'time_test': time_array[is_test],
+        'id_test': id_array[is_test],
+        'exg_test': [arr[is_test] for arr in exg_array],
+
+        'x_valid': x_array[is_valid],
+        'y_valid': y_array[is_valid],
+        'time_valid': time_array[is_valid],
+        'id_valid': id_array[is_valid],
+        'exg_valid': [arr[is_valid] for arr in exg_array],
+    }
+
+    return res
+
+
+def define_feature_mask(base_features: List[str], null_feat: str = None, time_feats: List[str] = None) -> List[int]:
+    # Return the type of feature (0: raw, 1: null encoding, 2: time encoding) in each timestamp
+    features_mask = [0 for _ in base_features]
+    if null_feat and null_feat in ['code_lin', 'code_bool']:
+        features_mask += [1]
+    elif null_feat and null_feat not in ['code_lin', 'code_bool']:
+        features_mask += [0]
+    if time_feats:
+        features_mask += [2 for _ in time_feats]
+    return features_mask
+
+
+# Number of distinct values for each time feature
+TIME_N_VALUES = {
+    'D': 31,
+    'DW': 7,
+    'M': 12,
+    'WY': 53
+}

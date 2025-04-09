@@ -22,6 +22,18 @@ class TimingCallback(tf.keras.callbacks.Callback):
         self.epoch_times.append(elapsed_time)
 
 
+def warmup_linear_decay_lr_schedule(max_lr, warmup_epochs, total_epochs):
+    def scheduler(epoch, lr):
+        epoch += 1  # Adjust epoch to start from 1
+        if epoch <= warmup_epochs:
+            lr = max_lr * (epoch / warmup_epochs)
+        else:
+            decay_epochs = total_epochs - warmup_epochs
+            lr = max_lr * ((total_epochs - epoch) / decay_epochs)
+        return lr
+    return scheduler
+
+
 class ModelWrapper(object):
     def __init__(
             self,
@@ -36,7 +48,8 @@ class ModelWrapper(object):
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
         self.model = ISTFModel(**model_params)
-        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+        self.lr = lr
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
 
         self.model.compile(
             loss=loss,
@@ -52,7 +65,7 @@ class ModelWrapper(object):
             self,
             X: np.ndarray,
             y: np.ndarray,
-            epochs: int = 50,
+            epochs: int = 100,
             batch_size: int = 32,
             verbose: int = 0,
             X_val: np.ndarray = None, y_val: np.ndarray = None,

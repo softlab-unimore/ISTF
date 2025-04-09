@@ -8,14 +8,12 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-# from ablation import parse_params
 from data_step_utils import time_encoding, link_spatial_data_water_body, link_spatial_data, null_distance_array, \
-    extract_windows, apply_iqr_masker, apply_scaler_by_stn, get_conf_name
+    extract_windows, apply_iqr_masker, apply_scaler_by_stn, get_conf_name, prepare_train_test, define_feature_mask
 from istf.dataset.read import load_data
-from istf.preparation import define_feature_mask, prepare_train_test
 
 
-def main(path_params: dict, prep_params: dict, eval_params: dict):
+def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42):
     ts_params = prep_params["ts_params"]
     spt_params = prep_params["spt_params"]
     exg_params = prep_params["exg_params"]
@@ -35,6 +33,9 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
     exg_cols = exg_params["features"]
     cols = [label_col] + exg_cols
     scaler_type = ts_params["scaler_type"]
+
+    random.seed(seed)
+    np.random.seed(seed)
 
     # Load dataset
     ts_dict, spt_dict = load_data(
@@ -63,11 +64,6 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
             tot += len(ts_dict[stn][col])
     print(f"Missing values after IQR masking: {nan}/{tot} ({nan/tot:.2%})")
 
-    if scaler_type == "minmax":
-        Scaler = MinMaxScaler
-    elif scaler_type == "standard":
-        Scaler = StandardScaler
-
     stns_no_data = list()
     for stn, ts in ts_dict.items():
         for f in [label_col]:
@@ -79,10 +75,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
     for stn in stns_no_data:
         ts_dict.pop(stn)
 
-    ts_dict, scalers = apply_scaler_by_stn(ts_dict, cols, train_end_excl, scaler_type)
-    # spt_scalers = {
-    #     stn: {label_col: vars(spt_scalers[stn][label_col])} for stn in spt_scalers
-    # }
+    ts_dict, scalers = apply_scaler_by_stn(ts_dict, train_end_excl, scaler_type)
     scalers = {
         stn: {
             "mean_": scaler.mean_[[0]],
@@ -157,11 +150,9 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
         y_array=y_array,
         time_array=time_array,
         id_array=id_array,
-        # spt_array=spt_array,
         exg_array=exg_array,
         test_start=eval_params['test_start'],
         valid_start=eval_params['valid_start'],
-        # spt_dict=spt_dict
     )
     print(f"X train: {len(D['x_train'])}")
     print(f"X valid: {len(D['x_valid'])}")
@@ -188,8 +179,6 @@ def main(path_params: dict, prep_params: dict, eval_params: dict):
         print('Saving to', pickle_path, '...', end='', flush=True)
         pickle.dump(D, f)
         print(' done!')
-
-    # return D
 
 
 if __name__ == '__main__':
@@ -225,8 +214,8 @@ if __name__ == '__main__':
             ctx_name, ctx_ext = os.path.splitext(conf['path_params']['ctx_filename'])
             conf['path_params']['ctx_filename'] = f"{ctx_name}_dev{ctx_ext}"
 
-    seed = args.seed
-    random.seed(seed)
-    np.random.seed(seed)
+    # seed = args.seed
+    # random.seed(seed)
+    # np.random.seed(seed)
 
     main(conf['path_params'], conf['prep_params'], conf['eval_params'])

@@ -43,4 +43,4 @@ def load_data(
             max_null_th=max_null_th
         )
     else:
-        raise ValueError(f'Dataset {data_type} is not supported, it must be: adbpo, french, or ushcn')
+        raise ValueError(f'Dataset {data_type} is not supported, it must be in ["french", "ushcn"]')

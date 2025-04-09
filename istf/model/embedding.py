@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from istf.preprocessing import TIME_N_VALUES
+from data_step_utils import TIME_N_VALUES
 
 
 class PositionalEmbedding(tf.keras.layers.Layer):

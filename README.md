@@ -1,6 +1,7 @@
 # Code for paper "Forecasting Irregularly Sampled Time Series with Transformer Encoders"
 
 📄 **[Paper Abstract](#abstract)**  
+📊 **[Datasets](#datasets)**  
 🚀 **[Usage](#usage)**  
 ⚙️ **[Command-line Arguments](#command-line-arguments)**
 
@@ -11,6 +12,18 @@
 Time series forecasting is a fundamental task in various domains, including environmental monitoring, finance, and healthcare. State-of-the-art forecasting models typically assume that time series are uniformly sampled. However, in real-world scenarios, data is often collected at irregular intervals and with missing values, due to sensor failures or network issues. This makes traditional forecasting approaches unsuitable.
 
 In this paper, we introduce **ISTF** (Irregular Sequence Transformer Forecasting), a novel transformer-based architecture designed for forecasting irregularly sampled multivariate time series. ISTF leverages exogenous variables as contextual information to enhance the prediction of a single target variable. The architecture first regularizes the MTS on a fixed temporal scale, keeping track of missing values. Then, a dedicated embedding strategy, based on a local and global attention mechanism, aims at capturing dependencies between timestamps, sources and missing values. We evaluate ISTF on two real-world datasets, **FrenchPiezo** and **USHCN**. The experimental results demonstrate that ISTF outperforms competing approaches in forecasting accuracy while remaining computationally efficient.
+
+---
+
+## 📊 Datasets
+
+The repository contains the smaller versions of the datasets, useful for debugging. The full datasets can be downloaded following the indications below.
+
+### FrenchPiezo
+Download `dataset_2015_2021.csv` and `dataset_stations.csv` from https://zenodo.org/records/7193812 and place them in `data/FrenchPiezo/`.
+
+### USHCN
+Run `ushcn_preprocessing.py` to download and preprocess the USHCN dataset. The file `pivot_1990_1993_spatial.csv` will be placed in `data/USHCN/.`
 
 ---
 
