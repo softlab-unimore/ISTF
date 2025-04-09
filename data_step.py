@@ -174,7 +174,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42
     tot -= tot * len(exg_params["features_stn"]) / (len(exg_cols)+1)
     print(f"Missing values in windows (excluding static features): {int(nan)}/{int(tot)} ({nan/tot:.2%})")
 
-    pickle_path = os.path.join('./output/pickle', f"{conf_name}.pickle")
+    pickle_path = os.path.join('./pickles', f"{conf_name}.pickle")
     with open(pickle_path, "wb") as f:
         print('Saving to', pickle_path, '...', end='', flush=True)
         pickle.dump(D, f)

@@ -1,7 +1,7 @@
 {
     "path_params": {
         "ts_filename": "data/FrenchPiezo/dataset_2015_2021.csv",
-        "ctx_filename": "data/FrenchPiezo/dataset_stations.csv",
+        "ctx_filename": "`data/FrenchPiezo/dataset_stations.csv",
         "ex_filename": ""
     },
 

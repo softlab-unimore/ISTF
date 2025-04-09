@@ -153,9 +153,9 @@ def model_step(train_test_dict: dict, checkpoint_dir: str) -> dict:
 
 
 def main(path_params, prep_params, eval_params, model_params, seed: int = 42):
-    results_dir = './output/results'
-    pickle_dir = './output/pickle'
-    model_dir = './output/model'
+    results_dir = './results'
+    pickle_dir = './pickles'
+    model_dir = './models'
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(pickle_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)

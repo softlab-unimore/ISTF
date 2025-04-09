@@ -35,11 +35,15 @@ To preprocess the data and store it in a `.pickle`, run:
 python data_step.py --dataset french --nan-percentage 0.2 --num-past 48 --num-future 60
 ```
 
+The `.pickle` corresponding to `dataset`, `nan-percentage`, `num-past` and `num-future` will be created in the `pickles/` directory. The data is already split into training, validation, and test sets. 
+
 To preprocess the data, train the model and test it, run:
 
 ```bash
 python pipeline.py --dataset french --nan-percentage 0.2 --num-past 48 --num-future 60
 ```
+
+If the `.pickle` file already exists, it will be loaded instead of being regenerated.
 
 To evaluate ablations or adjust hyperparameters, modify the command-line arguments accordingly.
 
