@@ -23,7 +23,7 @@ The repository contains the smaller versions of the datasets, useful for debuggi
 Download `dataset_2015_2021.csv` and `dataset_stations.csv` from https://zenodo.org/records/7193812 and place them in `data/FrenchPiezo/`.
 
 ### USHCN
-Run `ushcn_preprocessing.py` to download and preprocess the USHCN dataset. The file `pivot_1990_1993_spatial.csv` will be placed in `data/USHCN/.`
+Run `ushcn_preprocessing.py` to download and preprocess the USHCN dataset. The file `pivot_1990_1993_spatial.csv` will be placed in `data/USHCN/`. The script is adapted from https://github.com/bw-park/ACSSM/blob/main/lib/ushcn_preprocessing.py
 
 ---
 
