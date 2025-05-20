@@ -86,8 +86,8 @@ def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42
         for stn, scaler in scalers.items()
     }
 
-
-    exg_cols = exg_cols + (exg_params['features_stn'] if 'features_stn' in exg_params else [])
+    features_stn = exg_params['features_stn'] if 'features_stn' in exg_params else []
+    exg_cols = exg_cols + features_stn
     cols = [label_col] + exg_cols
 
     time_feats = ts_params["time_feats"]
@@ -171,10 +171,13 @@ def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42
     for x in arr_list:
         nan += x[:, :, 1].sum().sum()
         tot += x[:, :, 1].size
-    tot -= tot * len(exg_params["features_stn"]) / (len(exg_cols)+1)
+    tot -= tot * len(features_stn) / (len(exg_cols)+1)
     print(f"Missing values in windows (excluding static features): {int(nan)}/{int(tot)} ({nan/tot:.2%})")
 
-    pickle_path = os.path.join('./pickles', f"{conf_name}.pickle")
+    pickles_dir = os.path.join('.', 'pickles')
+    os.makedirs(pickles_dir, exist_ok=True)
+
+    pickle_path = os.path.join(pickles_dir, f"{conf_name}.pickle")
     with open(pickle_path, "wb") as f:
         print('Saving to', pickle_path, '...', end='', flush=True)
         pickle.dump(D, f)
