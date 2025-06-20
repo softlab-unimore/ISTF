@@ -38,10 +38,6 @@ def get_suffix(train_test_dict):
     suffix.append(f'h{num_heads}')
     dff = train_test_dict['params']['model_params']['nn_params']['dff']
     suffix.append(f'dff{dff}')
-    gru = train_test_dict['params']['model_params']['nn_params']['gru']
-    suffix.append(f'gru{gru}')
-    fff = train_test_dict['params']['model_params']['nn_params']['fff']
-    suffix.append(f'fff{"+".join([str(x) for x in fff])}')
 
     dropout_rate = train_test_dict['params']['model_params']['nn_params']['dropout_rate']
     suffix.append(f'dro{int(dropout_rate*10)}')
@@ -248,7 +244,7 @@ if __name__ == '__main__':
     parser.add_argument("--dff", type=int, default=64, help="Encoder internal feed-forward dimension")
     parser.add_argument("--num-layers", type=int, default=2, help="Number of encoder layers")
     parser.add_argument("--gru", type=int, default=64, help="GRU units")
-    parser.add_argument("--fff", type=int, nargs="+", default=[128], help="Sequence of feed-forward layer dimensions")
+    parser.add_argument("--hidden_units", type=int, nargs="+", default=[128], help="Sequence of feed-forward layer dimensions")
     parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
     parser.add_argument("--activation", type=str, default="gelu", help="Activation function")
@@ -300,11 +296,6 @@ if __name__ == '__main__':
     conf['model_params']['nn_params']['num_heads'] = args.num_heads
     conf['model_params']['nn_params']['dff'] = args.dff
     conf['model_params']['nn_params']['num_layers'] = args.num_layers
-    conf['model_params']['nn_params']['gru'] = args.gru
-    fff = args.fff
-    if fff[-1] == 1:
-        fff = fff[:-1]
-    conf['model_params']['nn_params']['fff'] = fff
     conf['model_params']['nn_params']['l2_reg'] = args.l2_reg
     conf['model_params']['nn_params']['dropout_rate'] = args.dropout
     conf['model_params']['nn_params']['activation'] = args.activation

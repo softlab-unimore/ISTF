@@ -6,10 +6,10 @@ import random
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from data_step_utils import time_encoding, link_spatial_data_water_body, link_spatial_data, null_distance_array, \
-    extract_windows, apply_iqr_masker, apply_scaler_by_stn, get_conf_name, prepare_train_test, define_feature_mask
+    extract_windows, apply_iqr_masker_by_stn, apply_scaler_by_stn, get_conf_name, prepare_train_test, \
+    define_feature_mask
 from istf.dataset.read import load_data
 
 
@@ -55,7 +55,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42
 
     train_end_excl = pd.to_datetime(eval_params["valid_start"]).date()
 
-    ts_dict = apply_iqr_masker(ts_dict, cols, train_end_excl)
+    ts_dict = apply_iqr_masker_by_stn(ts_dict, cols, train_end_excl)
 
     nan, tot = 0, 0
     for stn in ts_dict:
@@ -213,9 +213,5 @@ if __name__ == '__main__':
         if conf['path_params']['ctx_filename']:
             ctx_name, ctx_ext = os.path.splitext(conf['path_params']['ctx_filename'])
             conf['path_params']['ctx_filename'] = f"{ctx_name}_dev{ctx_ext}"
-
-    # seed = args.seed
-    # random.seed(seed)
-    # np.random.seed(seed)
 
     main(conf['path_params'], conf['prep_params'], conf['eval_params'])

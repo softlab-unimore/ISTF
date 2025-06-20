@@ -218,19 +218,14 @@ class IQRMasker(BaseEstimator, TransformerMixin):
         return X
 
 
-def apply_iqr_masker(ts_dict, features_to_mask, train_end_excl):
-    for f in features_to_mask:
-        ts_all_train = []
-        for stn in ts_dict:
-            ts = ts_dict[stn][f]
-            ts_all_train.append(ts.loc[ts.index < train_end_excl].values)
-        ts_all_train = np.concatenate(ts_all_train)
-        iqr_masker = IQRMasker().fit(ts_all_train.reshape(-1, 1))
+def apply_iqr_masker_by_stn(ts_dict, features_to_mask, train_end_excl):
+    for stn in ts_dict:
+        for f in features_to_mask:
+            iqr_masker = IQRMasker()
 
-        for stn in ts_dict:
             ts_train = ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f]
             if ts_train.isna().all(): continue
-            ts_train = iqr_masker.transform(ts_train.values.reshape(-1, 1))
+            ts_train = iqr_masker.fit_transform(ts_train.values.reshape(-1, 1))
             ts_dict[stn].loc[ts_dict[stn].index < train_end_excl, f] = ts_train.reshape(-1)
 
             ts_test = ts_dict[stn].loc[ts_dict[stn].index >= train_end_excl, f]
@@ -281,8 +276,9 @@ def prepare_train_test(
         valid_start: str,
 ) -> dict:
     is_train = time_array[:, -1] < pd.to_datetime(valid_start).date()
-    is_valid = (time_array[:, -1] >= pd.to_datetime(valid_start).date()) & (time_array[:, -1] < pd.to_datetime(test_start).date())
-    is_test = (time_array[:, -1] >= pd.to_datetime(test_start).date())
+    is_valid = ((time_array[:, -1] >= pd.to_datetime(valid_start).date()) &
+                (time_array[:, -1] < pd.to_datetime(test_start).date()))
+    is_test = time_array[:, -1] >= pd.to_datetime(test_start).date()
 
     res = {
         'x_train': x_array[is_train],
