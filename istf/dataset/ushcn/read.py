@@ -79,7 +79,7 @@ def load_ushcn_data(
     ctx_dict = extract_ushcn_context(
         filename=ts_filename,
         id_col='COOP_ID',
-        x_col='X', y_col='Y'
+        x_col='LONGITUDE', y_col='LATITUDE'
     )
 
     # Remove time-series without context information
