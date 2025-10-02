@@ -243,13 +243,11 @@ if __name__ == '__main__':
     parser.add_argument("--num-heads", type=int, default=4, help="Number of attention heads")
     parser.add_argument("--dff", type=int, default=64, help="Encoder internal feed-forward dimension")
     parser.add_argument("--num-layers", type=int, default=2, help="Number of encoder layers")
-    parser.add_argument("--gru", type=int, default=64, help="GRU units")
-    parser.add_argument("--hidden_units", type=int, nargs="+", default=[128], help="Sequence of feed-forward layer dimensions")
     parser.add_argument("--l2-reg", type=float, default=1e-2, help="L2 regularization")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate")
     parser.add_argument("--activation", type=str, default="gelu", help="Activation function")
 
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument("--loss", type=str, default="mse", help="Loss function")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size")
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
@@ -277,7 +275,6 @@ if __name__ == '__main__':
     conf['path_params']['force_data_step'] = args.force_data_step
     conf['path_params']['dev'] = args.dev
     conf['model_params']['cpu'] = args.cpu
-    # conf['model_params']['seed'] = args.seed
 
     conf["prep_params"]["ts_params"]["dataset"] = args.dataset
     conf['prep_params']['ts_params']["nan_percentage"] = args.nan_percentage

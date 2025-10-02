@@ -77,12 +77,11 @@ class ISTFModel(tf.keras.Model):
 
         if self.predictor_cls == 'PredictorFlatten':
             self.predictor = PredictorFlatten(
-                hidden_units=self.dff, activation=self.activation, dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
+                hidden_units=self.d_model, activation=self.activation, dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
             )
         else:  # if self.predictor_cls == 'gru':
             self.predictor = PredictorGRU(
-                gru_units=self.d_model, hidden_units=self.dff, activation=self.activation,
-                dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
+                gru_units=self.d_model, dropout_rate=self.dropout_rate, l2_reg=self.l2_reg
             )
 
     def get_config(self):
@@ -93,8 +92,6 @@ class ISTFModel(tf.keras.Model):
             'd_model': self.d_model,
             'num_heads': self.num_heads,
             'dff': self.dff,
-            # 'gru': self.gru,
-            # 'hidden_units': self.hidden_units,
             'activation': self.activation,
             'num_layers': self.num_layers,
             'dropout_rate': self.dropout_rate,
@@ -137,14 +134,14 @@ class MVEncoderLayerLocalGlobalAttn(tf.keras.layers.Layer):
 
         self.loc_attn = GlobalSelfAttention(
             num_heads=num_heads,
-            key_dim=d_model,
+            key_dim=d_model // num_heads,
             dropout=dropout_rate,
             **reg
         )
 
         self.glb_attn = GlobalSelfAttention(
             num_heads=num_heads,
-            key_dim=d_model,
+            key_dim=d_model // num_heads,
             dropout=dropout_rate,
             **reg
         )
@@ -182,20 +179,14 @@ class MVEncoderLayerLocalGlobalAttn(tf.keras.layers.Layer):
 
 class PredictorGRU(tf.keras.layers.Layer):
 
-    def __init__(self, gru_units, hidden_units, activation="gelu", dropout_rate=0.1, l2_reg=None):
+    def __init__(self, gru_units, dropout_rate=0.1, l2_reg=None):
         super().__init__()
         l2_reg = tf.keras.regularizers.l2(l2_reg) if l2_reg else None
         self.gru = tf.keras.layers.GRU(gru_units, kernel_regularizer=l2_reg, recurrent_regularizer=l2_reg)
-        final_layers = []
-        for units in hidden_units:
-            final_layers.extend([
-                tf.keras.layers.Dropout(dropout_rate),
-                tf.keras.layers.Dense(units, activation=activation, kernel_regularizer=l2_reg)
-            ])
-        final_layers.extend([
+        final_layers = [
             tf.keras.layers.Dropout(dropout_rate),
             tf.keras.layers.Dense(1, activation='linear')
-        ])
+        ]
         self.final_layers = tf.keras.models.Sequential(final_layers)
 
     def call(self, x, mask=None):
@@ -210,16 +201,12 @@ class PredictorFlatten(tf.keras.layers.Layer):
         super().__init__()
         l2_reg = tf.keras.regularizers.l2(l2_reg) if l2_reg else None
         self.flatten = tf.keras.layers.Flatten()
-        final_layers = []
-        for units in hidden_units:
-            final_layers.extend([
-                tf.keras.layers.Dropout(dropout_rate),
-                tf.keras.layers.Dense(units, activation=activation, kernel_regularizer=l2_reg)
-            ])
-        final_layers.extend([
+        final_layers = [
+            tf.keras.layers.Dropout(dropout_rate),
+            tf.keras.layers.Dense(hidden_units, activation=activation, kernel_regularizer=l2_reg),
             tf.keras.layers.Dropout(dropout_rate),
             tf.keras.layers.Dense(1, activation='linear')
-        ])
+        ]
         self.final_layers = tf.keras.models.Sequential(final_layers)
 
     def call(self, x):

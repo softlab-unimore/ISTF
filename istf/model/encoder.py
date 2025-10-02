@@ -79,7 +79,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
         self.self_attention = GlobalSelfAttention(
             num_heads=num_heads,
-            key_dim=d_model,
+            key_dim=d_model // num_heads,
             dropout=dropout_rate,
             **reg
         )

@@ -69,7 +69,7 @@ To evaluate ablations or adjust hyperparameters, modify the command-line argumen
 - `--activation`: Activation function (default: `relu`)
 
 ### Optimization
-- `--lr`: Learning rate (default: `1e-4`)
+- `--lr`: Learning rate (default: `3e-4`)
 - `--loss`: Loss function (default: `mse`)
 - `--batch-size`: Batch size (default: `64`)
 - `--epochs`: Number of training epochs (default: `100`)
