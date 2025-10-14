@@ -171,7 +171,7 @@ def main(path_params: dict, prep_params: dict, eval_params: dict, seed: int = 42
     for x in arr_list:
         nan += x[:, :, 1].sum().sum()
         tot += x[:, :, 1].size
-    tot -= tot * len(exg_params["features_stn"]) / (len(exg_cols)+1)
+    tot -= tot * len(exg_params.get("features_stn", [])) / (len(exg_cols)+1)
     print(f"Missing values in windows (excluding static features): {int(nan)}/{int(tot)} ({nan/tot:.2%})")
 
     pickle_path = os.path.join('./pickles', f"{conf_name}.pickle")

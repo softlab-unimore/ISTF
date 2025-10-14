@@ -261,7 +261,8 @@ def apply_scaler_by_stn(ts_dict, train_end_excl, scaler_type):
 
 
 def get_conf_name(dataset, nan_percentage, num_past, num_fut, num_spt, max_dist_th, dev):
-    subset = f"spt{num_spt}_th{max_dist_th}"
+    subset = f"spt{num_spt}"
+    if num_spt > 0: subset += "_th{max_dist_th}"
     if dev: subset += "_dev"
     return f"{dataset}_{subset}_nan{int(nan_percentage * 10)}_np{num_past}_nf{num_fut}"
 
